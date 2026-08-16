@@ -308,7 +308,7 @@ function toFamilyEvents(
   });
 }
 
-function Event(props: {event: EventData}) {
+function Event(props: {event: EventData; gedcom: GedcomData}) {
   return (
     <Item>
       <Item.Content>
@@ -326,6 +326,7 @@ function Event(props: {event: EventData}) {
           sources={props.event.sources}
           indi={props.event.indi}
           files={props.event.files}
+          gedcom={props.gedcom}
         />
       </Item.Content>
     </Item>
@@ -348,7 +349,7 @@ export function Events(props: Props) {
     return (
       <>
         {events.map((event, index) => (
-          <Event event={event} key={index} />
+          <Event event={event} gedcom={props.gedcom} key={index} />
         ))}
       </>
     );

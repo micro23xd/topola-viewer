@@ -34,6 +34,19 @@ export interface Source {
   page?: string;
   date?: DateOrRange;
   publicationInfo?: string;
+  /** Id of the SOUR record, without the pointer braces. */
+  sourceId?: string;
+  /** How good the evidence is: 3 Urkunde, 2 Zweitzeuge, 1 Baum, 0 Familie. */
+  quay?: number;
+  /** The citation's own NOTE — what this page actually says. */
+  notes: string[];
+  /** The NOTE on the source record: what the source is and how to reach it. */
+  sourceNotes: string[];
+  /** The repository holding the source, and its address. */
+  repoName?: string;
+  repoWww?: string;
+  /** The call number the repository knows the source by. */
+  caln?: string;
 }
 
 /**
@@ -449,12 +462,40 @@ export function mapToSource(
 
   const date = sourceData ? resolveDate(sourceData) : undefined;
 
+  const quayData = sourceEntryReference.tree.find(
+    (subEntry) => 'QUAY' === subEntry.tag,
+  )?.data;
+  const quay = quayData !== undefined ? Number(quayData) : NaN;
+
+  const citationNote = sourceEntryReference.tree.find(
+    (subEntry) => 'NOTE' === subEntry.tag,
+  );
+  const sourceNote = sourceEntry.tree.find(
+    (subEntry) => 'NOTE' === subEntry.tag,
+  );
+
+  const repoReference = sourceEntry.tree.find(
+    (subEntry) => 'REPO' === subEntry.tag,
+  );
+  const repo = repoReference
+    ? dereference(repoReference, gedcom, (gedcom) => gedcom.other)
+    : undefined;
+
   return {
     title: title?.data || abbr?.data,
     author: author?.data,
     page: page?.data,
     date: date ? getDate(date.data) : undefined,
     publicationInfo: publicationInfo?.data,
+    sourceId: sourceEntry.pointer
+      ? pointerToId(sourceEntry.pointer)
+      : undefined,
+    quay: Number.isFinite(quay) ? quay : undefined,
+    notes: citationNote ? getData(citationNote) : [],
+    sourceNotes: sourceNote ? getData(sourceNote) : [],
+    repoName: repo?.tree.find((subEntry) => 'NAME' === subEntry.tag)?.data,
+    repoWww: repo?.tree.find((subEntry) => 'WWW' === subEntry.tag)?.data,
+    caln: repoReference?.tree.find((subEntry) => 'CALN' === subEntry.tag)?.data,
   };
 }
 

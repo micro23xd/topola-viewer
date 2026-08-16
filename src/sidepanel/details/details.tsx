@@ -15,8 +15,10 @@ import {
 import {Config, Ids} from '../config/config';
 import {AdditionalFiles, FileEntry} from './additional-files';
 import {ALL_SUPPORTED_EVENT_TYPES, Events} from './events';
+import {EvidenceCard} from './evidence-card';
 import {ImmediateFamily} from './immediate-family';
 import {MultilineText} from './multiline-text';
+import {NoteText} from './note-text';
 import {Sources} from './sources';
 import {TranslatedTag} from './translated-tag';
 import {WrappedImage} from './wrapped-image';
@@ -191,13 +193,7 @@ function noteDetails(noteEntryReference: GedcomEntry, gedcom: GedcomData) {
     return null;
   }
 
-  return (
-    <MultilineText
-      lines={getData(noteEntry).map((line, index) => (
-        <i key={index}>{line}</i>
-      ))}
-    />
-  );
+  return <NoteText lines={getData(noteEntry)} gedcom={gedcom} />;
 }
 
 function nameDetails(entry: GedcomEntry) {
@@ -369,6 +365,7 @@ export function Details(props: Props) {
           imageDetails,
           props.images,
         )}
+        <EvidenceCard gedcom={props.gedcom} indi={props.indi} />
         <ImmediateFamily gedcom={props.gedcom} indi={props.indi} />
         <Events
           gedcom={props.gedcom}

@@ -120,6 +120,8 @@
   "wikitree.private": "Privat",
   "tab.info": "Informationen",
   "tab.settings": "Einstellungen",
+  "tab.research": "Forschung",
+  "evidence.header": "Belege",
   "config.colors": "Farben",
   "config.colors.NO_COLOR": "keine",
   "config.colors.COLOR_BY_GENERATION": "je Generation",

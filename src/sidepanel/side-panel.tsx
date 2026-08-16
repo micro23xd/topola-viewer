@@ -4,6 +4,7 @@ import {TopolaData} from '../util/gedcom_util';
 import {Config, ConfigPanel} from './config/config';
 import {CollapsedDetails} from './details/collapsed-details';
 import {Details} from './details/details';
+import {ResearchTab} from './research/research-tab';
 
 interface SidePanelProps {
   data: TopolaData;
@@ -12,6 +13,7 @@ interface SidePanelProps {
   onConfigChange: (config: Config) => void;
   expanded: boolean;
   onToggle: () => void;
+  onSelectIndi: (id: string) => void;
 }
 
 export function SidePanel({
@@ -21,6 +23,7 @@ export function SidePanel({
   onConfigChange,
   expanded,
   onToggle,
+  onSelectIndi,
 }: SidePanelProps) {
   const intl = useIntl();
 
@@ -37,6 +40,15 @@ export function SidePanel({
           config={config}
           images={data.images}
         />
+      ),
+    },
+    {
+      menuItem: intl.formatMessage({
+        id: 'tab.research',
+        defaultMessage: 'Research',
+      }),
+      render: () => (
+        <ResearchTab gedcom={data.gedcom} onSelectIndi={onSelectIndi} />
       ),
     },
     {

@@ -1,11 +1,64 @@
+import {useState} from 'react';
 import {useIntl} from 'react-intl';
-import {List} from 'semantic-ui-react';
+import {Icon, Label, List} from 'semantic-ui-react';
 import {formatDateOrRange} from '../../util/date_util';
 import {Source} from '../../util/gedcom_util';
+import {linksForCitation} from '../../util/links';
 import {LinkifyNewTab} from './linkify-new-tab';
+import {MultilineText} from './multiline-text';
 
 interface Props {
   sources?: Source[];
+}
+
+/**
+ * What a QUAY means, in the wording the research uses. The colours are the ones
+ * the chart paints the same fact with.
+ */
+const TIERS: {[key: number]: {text: string; color: string}} = {
+  3: {text: 'Urkunde', color: '#3a9d5d'},
+  2: {text: 'Zweitzeuge', color: '#d9a400'},
+  1: {text: 'Kompilierter Baum', color: '#e07b2a'},
+  0: {text: 'Familienangabe', color: '#e07b2a'},
+};
+
+function TierBadge({quay}: {quay?: number}) {
+  const tier = quay !== undefined ? TIERS[quay] : undefined;
+  return (
+    <Label
+      size="mini"
+      style={{
+        backgroundColor: tier?.color ?? '#9a9a9a',
+        color: 'white',
+        marginRight: '6px',
+        verticalAlign: 'middle',
+      }}
+    >
+      {tier ? `${tier.text} · QUAY ${quay}` : 'ohne QUAY'}
+    </Label>
+  );
+}
+
+/** What the source itself is, and how to reach it. Shown on demand. */
+function SourceNote({source}: {source: Source}) {
+  const [open, setOpen] = useState(false);
+  if (!source.sourceNotes.length) return null;
+  return (
+    <div style={{marginTop: '3px'}}>
+      <a
+        onClick={() => setOpen(!open)}
+        style={{cursor: 'pointer', fontSize: '0.9em'}}
+      >
+        <Icon name={open ? 'caret down' : 'caret right'} />
+        Über die Quelle
+      </a>
+      {open ? (
+        <div style={{color: '#666', fontSize: '0.95em', marginLeft: '1em'}}>
+          <MultilineText lines={source.sourceNotes} />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function Sources({sources}: Props) {
@@ -14,25 +67,56 @@ export function Sources({sources}: Props) {
   if (!sources?.length) return null;
 
   return (
-    <List>
-      {sources.map((source, index) => (
-        <List.Item key={index}>
-          <List.Icon verticalAlign="middle" name="circle" size="tiny" />
-          <List.Content>
-            <List.Header>
-              <LinkifyNewTab>
-                {[source.author, source.title, source.publicationInfo]
-                  .filter((sourceElement) => !!sourceElement)
-                  .join(', ')}
-              </LinkifyNewTab>
-            </List.Header>
-            <List.Description>
-              <LinkifyNewTab>{source.page}</LinkifyNewTab>
-              {source.date && ` [${formatDateOrRange(source.date, intl)}]`}
-            </List.Description>
-          </List.Content>
-        </List.Item>
-      ))}
+    <List className="citations">
+      {sources.map((source, index) => {
+        const links = linksForCitation(source, {
+          repoWww: source.repoWww,
+          repoName: source.repoName,
+          caln: source.caln,
+        });
+        return (
+          <List.Item key={index}>
+            <List.Content>
+              <List.Header>
+                <TierBadge quay={source.quay} />
+                <LinkifyNewTab>
+                  {[source.author, source.title, source.publicationInfo]
+                    .filter((sourceElement) => !!sourceElement)
+                    .join(', ')}
+                </LinkifyNewTab>
+              </List.Header>
+              <List.Description>
+                <div>
+                  <LinkifyNewTab>{source.page}</LinkifyNewTab>
+                  {source.date && ` [${formatDateOrRange(source.date, intl)}]`}
+                </div>
+                {links.length ? (
+                  <div style={{marginTop: '2px'}}>
+                    {links.map((link) => (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{marginRight: '10px', whiteSpace: 'nowrap'}}
+                      >
+                        <Icon name="external" size="small" />
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+                {source.notes.length ? (
+                  <div style={{marginTop: '3px', color: '#444'}}>
+                    <MultilineText lines={source.notes} />
+                  </div>
+                ) : null}
+                <SourceNote source={source} />
+              </List.Description>
+            </List.Content>
+          </List.Item>
+        );
+      })}
     </List>
   );
 }

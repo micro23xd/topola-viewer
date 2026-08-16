@@ -9,9 +9,9 @@ import {
   Popup,
   Tab,
 } from 'semantic-ui-react';
-import {Source} from '../../util/gedcom_util';
+import {GedcomData, Source} from '../../util/gedcom_util';
 import {AdditionalFiles, FileEntry} from './additional-files';
-import {MultilineText} from './multiline-text';
+import {NoteText} from './note-text';
 import {Sources} from './sources';
 import {WrappedImage} from './wrapped-image';
 
@@ -27,6 +27,7 @@ interface Props {
   sources?: Source[];
   indi: string;
   files?: FileEntry[];
+  gedcom: GedcomData;
 }
 
 function eventImages(images: Image[] | undefined) {
@@ -46,16 +47,12 @@ function eventImages(images: Image[] | undefined) {
   );
 }
 
-function eventNotes(notes: string[][] | undefined) {
+function eventNotes(notes: string[][] | undefined, gedcom: GedcomData) {
   return (
     !!notes?.length &&
     notes.map((note, index) => (
       <div key={index}>
-        <MultilineText
-          lines={note.map((line, index) => (
-            <i key={index}>{line}</i>
-          ))}
-        />
+        <NoteText lines={note} gedcom={gedcom} />
       </div>
     ))
   );
@@ -95,42 +92,6 @@ export function EventExtras(props: Props) {
     render: () => <Tab.Pane>{eventImages(props.images)}</Tab.Pane>,
   };
 
-  const noteTab = props.notes?.length && {
-    menuItem: (
-      <Menu.Item fitted key="notes" onClick={handleTabOnClick}>
-        <Popup
-          content={
-            <FormattedMessage id="extras.notes" defaultMessage="Notes" />
-          }
-          size="mini"
-          position="bottom center"
-          trigger={<Icon circular name="sticky note outline" />}
-        />
-      </Menu.Item>
-    ),
-    render: () => <Tab.Pane>{eventNotes(props.notes)}</Tab.Pane>,
-  };
-
-  const sourceTab = props.sources?.length && {
-    menuItem: (
-      <Menu.Item fitted key="sources" onClick={handleTabOnClick}>
-        <Popup
-          content={
-            <FormattedMessage id="extras.sources" defaultMessage="Sources" />
-          }
-          size="mini"
-          position="bottom center"
-          trigger={<Icon circular name="quote right" />}
-        />
-      </Menu.Item>
-    ),
-    render: () => (
-      <Tab.Pane>
-        <Sources sources={props.sources} />
-      </Tab.Pane>
-    ),
-  };
-
   const filesTab = props.files?.length && {
     menuItem: (
       <Menu.Item fitted key="files" onClick={handleTabOnClick}>
@@ -154,27 +115,40 @@ export function EventExtras(props: Props) {
     ),
   };
 
-  const panes = [imageTab, noteTab, sourceTab, filesTab].flatMap((tab) =>
-    tab ? [tab] : [],
-  );
+  const panes = [imageTab, filesTab].flatMap((tab) => (tab ? [tab] : []));
+
+  // What the entry says and what it rests on are the point of the record, not
+  // an attachment to it, so both are always open — an event note is where the
+  // witnesses and the dispensation are written down. Images and additional
+  // files stay behind the tab strip.
+  const written =
+    props.notes?.length || props.sources?.length ? (
+      <Item.Description className="event-citations">
+        {eventNotes(props.notes, props.gedcom)}
+        <Sources sources={props.sources} />
+      </Item.Description>
+    ) : null;
 
   if (panes.length) {
     return (
-      <Item.Description>
-        <Tab
-          className="event-extras"
-          activeIndex={activeIndex}
-          renderActiveOnly={true}
-          menu={{
-            tabular: true,
-            attached: true,
-            compact: true,
-            borderless: true,
-          }}
-          panes={panes}
-        />
-      </Item.Description>
+      <>
+        {written}
+        <Item.Description>
+          <Tab
+            className="event-extras"
+            activeIndex={activeIndex}
+            renderActiveOnly={true}
+            menu={{
+              tabular: true,
+              attached: true,
+              compact: true,
+              borderless: true,
+            }}
+            panes={panes}
+          />
+        </Item.Description>
+      </>
     );
   }
-  return null;
+  return written;
 }

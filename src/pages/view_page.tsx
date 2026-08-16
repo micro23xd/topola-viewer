@@ -227,6 +227,9 @@ export function ViewPage() {
                 expanded={showSidePanel}
                 onToggle={onToggleSidePanel}
                 onConfigChange={onConfigChange}
+                onSelectIndi={(id) =>
+                  onSelection({id, generation: selection.generation})
+                }
               />
               <SidebarPusher>
                 {renderChart(selection)}
