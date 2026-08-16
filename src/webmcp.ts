@@ -1,5 +1,6 @@
 import {JsonEvent, JsonFam, JsonGedcomData, JsonIndi} from 'topola';
 import {buildSearchIndex, SearchIndex, SearchResult} from './menu/search_index';
+import {computeEvidence, EvidenceIndex, Fact} from './util/evidence';
 import {
   findRelationshipPath,
   getAncestors,
@@ -13,8 +14,11 @@ import {
   FOCUS_INDI,
   GET_ANCESTORS,
   GET_DESCENDANTS,
+  GET_EVIDENCE_SUMMARY,
+  GET_PERSON_EVIDENCE,
   GET_SELECTED_PERSON,
   INSPECT_INDI,
+  LIST_RESEARCH_QUEUE,
   SEARCH_INDI,
 } from './webmcp_definitions';
 import {WebMcpTool} from './webmcp_types';
@@ -79,6 +83,7 @@ export class WebMcpBridge {
   private indiMap: Map<string, JsonIndi> = new Map();
   private famMap: Map<string, JsonFam> = new Map();
   private setSelectionCallback: ((id: string) => void) | null = null;
+  private evidence: EvidenceIndex | null = null;
   private toolsRegistered = false;
 
   /** Returns the full details of the currently selected person. */
@@ -173,6 +178,112 @@ export class WebMcpBridge {
     return toMcpResponse(basicIndis);
   }
 
+  /** The evidence behind the whole file, in the words the research uses. */
+  private async handleGetEvidenceSummary() {
+    const evidence = this.evidence;
+    if (!evidence) {
+      return textMcpResponse('Data not loaded.');
+    }
+    const q = evidence.queues;
+    return toMcpResponse({
+      facts: evidence.summary.facts,
+      from_records: evidence.summary.urkunde,
+      secondary_witness: evidence.summary.zweitzeuge,
+      lead_only: evidence.summary.hinweis,
+      no_source: evidence.summary.ohne,
+      queues: {
+        no_source: q.ohne.length,
+        lead_only: q.hinweis.length,
+        unexplained: q.unexplained.length,
+        citation_outstanding: q.pending.length,
+        parents_unknown: q.frontier.length,
+        unattached: q.detached.length,
+      },
+    });
+  }
+
+  private factToMcp(fact: Fact) {
+    return {
+      fact: fact.tag,
+      date: fact.date,
+      place: fact.place,
+      owner: fact.owner,
+      tier: fact.bucket,
+      quay: fact.bestQuay,
+      citations: fact.citations.map((citation) => ({
+        source: citation.sourceId,
+        page: citation.page,
+        quay: citation.quay,
+        note: citation.notes.join(' ') || undefined,
+      })),
+      unexplained: fact.unexplained,
+      citation_outstanding: fact.pending,
+    };
+  }
+
+  private async handleGetPersonEvidence(params: {id: string}) {
+    const person = this.evidence?.persons.get(params.id);
+    if (!person) {
+      return textMcpResponse(`No evidence found for id ${params.id}.`);
+    }
+    return toMcpResponse({
+      id: person.id,
+      name: this.getIndiName(person.id),
+      state: person.state,
+      parents_unknown: person.frontier,
+      unattached: person.detached,
+      facts: [...person.facts, ...person.marriages].map((fact) =>
+        this.factToMcp(fact),
+      ),
+    });
+  }
+
+  private async handleListResearchQueue(params: {
+    queue: string;
+    limit?: number;
+  }) {
+    const evidence = this.evidence;
+    if (!evidence) {
+      return textMcpResponse('Data not loaded.');
+    }
+    const limit = Math.min(params.limit ?? 50, 200);
+    const factQueues: {[key: string]: Fact[]} = {
+      no_source: evidence.queues.ohne,
+      lead_only: evidence.queues.hinweis,
+      unexplained: evidence.queues.unexplained,
+      citation_outstanding: evidence.queues.pending,
+    };
+    const personQueues: {[key: string]: string[]} = {
+      parents_unknown: evidence.queues.frontier,
+      unattached: evidence.queues.detached,
+    };
+    const facts = factQueues[params.queue];
+    if (facts) {
+      return toMcpResponse({
+        total: facts.length,
+        rows: facts.slice(0, limit).map((fact) => ({
+          ...this.factToMcp(fact),
+          name: this.getIndiName(fact.owner),
+        })),
+      });
+    }
+    const people = personQueues[params.queue];
+    if (people) {
+      return toMcpResponse({
+        total: people.length,
+        rows: people
+          .slice(0, limit)
+          .map((id) => ({id, name: this.getIndiName(id)})),
+      });
+    }
+    return textMcpResponse(
+      `Unknown queue "${params.queue}". Use one of: ${[
+        ...Object.keys(factQueues),
+        ...Object.keys(personQueues),
+      ].join(', ')}.`,
+    );
+  }
+
   /** Updates the currently selected individual in focus. */
   public setDetailIndi(newDetailIndi: string | null): void {
     this.detailIndi = newDetailIndi;
@@ -185,11 +296,13 @@ export class WebMcpBridge {
       this.famMap = idToFamMap(newData.chartData);
       this.chartData = newData.chartData;
       this.searchIndex = null;
+      this.evidence = computeEvidence(newData.gedcom);
     } else {
       this.indiMap.clear();
       this.famMap.clear();
       this.chartData = null;
       this.searchIndex = null;
+      this.evidence = null;
     }
   }
 
@@ -369,6 +482,22 @@ export class WebMcpBridge {
         execute: (params: Record<string, unknown>) =>
           this.handleGetDescendants(
             params as {id: string; generations: number},
+          ),
+      },
+      {
+        ...GET_EVIDENCE_SUMMARY,
+        execute: () => this.handleGetEvidenceSummary(),
+      },
+      {
+        ...GET_PERSON_EVIDENCE,
+        execute: (params: Record<string, unknown>) =>
+          this.handleGetPersonEvidence(params as {id: string}),
+      },
+      {
+        ...LIST_RESEARCH_QUEUE,
+        execute: (params: Record<string, unknown>) =>
+          this.handleListResearchQueue(
+            params as {queue: string; limit?: number},
           ),
       },
     ];

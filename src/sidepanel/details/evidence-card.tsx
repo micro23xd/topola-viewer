@@ -4,19 +4,16 @@
  * research flags the chart draws as borders.
  */
 
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, useIntl} from 'react-intl';
 import {Header, Item, Label} from 'semantic-ui-react';
 import {Bucket, Fact, getCurrentEvidence} from '../../util/evidence';
+import {
+  EvidenceLabels,
+  evidenceLabels,
+  tagLabel,
+} from '../../util/evidence_labels';
 import {GedcomData} from '../../util/gedcom_util';
 import {linkForRefn} from '../../util/links';
-
-const BUCKET_TEXT: {[key in Bucket]: string} = {
-  urkunde: 'urkundlich',
-  zweitzeuge: 'Zweitzeuge',
-  hinweis: 'nur Hinweis',
-  ohne: 'ohne Quelle',
-  keine: 'nichts belegt',
-};
 
 const BUCKET_COLOR: {[key in Bucket]: string} = {
   urkunde: '#3a9d5d',
@@ -26,16 +23,7 @@ const BUCKET_COLOR: {[key in Bucket]: string} = {
   keine: '#c8c8c8',
 };
 
-const TAG_TEXT: {[tag: string]: string} = {
-  BIRT: 'Geburt',
-  CHR: 'Taufe',
-  DEAT: 'Tod',
-  BURI: 'Begräbnis',
-  MARR: 'Heirat',
-};
-
-function FactRow({fact}: {fact: Fact}) {
-  const count = fact.citations.length;
+function FactRow({fact, labels}: {fact: Fact; labels: EvidenceLabels}) {
   return (
     <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
       <span
@@ -47,11 +35,13 @@ function FactRow({fact}: {fact: Fact}) {
           background: BUCKET_COLOR[fact.bucket],
         }}
       />
-      <span style={{minWidth: '5.5em'}}>{TAG_TEXT[fact.tag] ?? fact.tag}</span>
+      <span style={{minWidth: '5.5em'}}>{tagLabel(labels, fact.tag)}</span>
       <span style={{color: '#666'}}>
-        {BUCKET_TEXT[fact.bucket]}
-        {count ? ` · ${count} ${count === 1 ? 'Beleg' : 'Belege'}` : ''}
-        {fact.pending ? ' · Beleg nachzutragen' : ''}
+        {labels.bucket[fact.bucket]}
+        {fact.citations.length
+          ? ` · ${labels.citations(fact.citations.length)}`
+          : ''}
+        {fact.pending ? ` · ${labels.pending}` : ''}
       </span>
     </div>
   );
@@ -63,6 +53,8 @@ interface Props {
 }
 
 export function EvidenceCard({gedcom, indi}: Props) {
+  const intl = useIntl();
+  const labels = evidenceLabels(intl.locale);
   const person = getCurrentEvidence()?.persons.get(indi);
   if (!person) return null;
 
@@ -83,9 +75,11 @@ export function EvidenceCard({gedcom, indi}: Props) {
           <FormattedMessage id="evidence.header" defaultMessage="Belege" />
         </Header>
         {facts.length ? (
-          facts.map((fact, index) => <FactRow fact={fact} key={index} />)
+          facts.map((fact, index) => (
+            <FactRow fact={fact} labels={labels} key={index} />
+          ))
         ) : (
-          <div style={{color: '#666'}}>{BUCKET_TEXT.keine}</div>
+          <div style={{color: '#666'}}>{labels.bucket.keine}</div>
         )}
         {person.frontier || person.detached ? (
           <div style={{marginTop: '5px'}}>
@@ -94,7 +88,7 @@ export function EvidenceCard({gedcom, indi}: Props) {
                 size="mini"
                 style={{background: '#c0392b', color: 'white'}}
               >
-                Eltern unbekannt
+                {labels.frontier}
               </Label>
             ) : null}
             {person.detached ? (
@@ -102,7 +96,7 @@ export function EvidenceCard({gedcom, indi}: Props) {
                 size="mini"
                 style={{background: '#7d5ba6', color: 'white'}}
               >
-                nicht verbunden
+                {labels.detached}
               </Label>
             ) : null}
           </div>

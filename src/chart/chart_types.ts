@@ -9,7 +9,7 @@ import {
   ChartColors as TopolaChartColors,
 } from 'topola';
 import {ChartColors, Ids, PlaceDisplay, Sex} from '../sidepanel/config/config';
-import {EvidenceRenderer} from './evidence_renderer';
+import {EvidenceCircleRenderer, EvidenceRenderer} from './evidence_renderer';
 
 /** Supported chart types. */
 export enum ChartType {
@@ -60,10 +60,12 @@ export function getChartType(chartType: ChartType) {
 export function getRendererType(chartType: ChartType, colors?: ChartColors) {
   switch (chartType) {
     case ChartType.Fancy:
-      return CircleRenderer;
+      return colors === ChartColors.COLOR_BY_EVIDENCE
+        ? EvidenceCircleRenderer
+        : CircleRenderer;
     default:
       // The evidence renderer is a DetailedRenderer that also paints how well
-      // each person is evidenced; the circle chart has no room for that yet.
+      // each person is evidenced.
       return colors === ChartColors.COLOR_BY_EVIDENCE
         ? EvidenceRenderer
         : DetailedRenderer;

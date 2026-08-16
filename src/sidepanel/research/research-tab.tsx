@@ -1,26 +1,29 @@
 /**
- * The work queues, on screen.
+ * The work queues, on screen, plus the two indexes that answer "where have I
+ * been" rather than "who is this": the sources and the places.
  *
- * `make validate` prints these lists on the command line; this is the same
+ * `make validate` prints the queues on the command line; this is the same
  * arithmetic over the same file, so the header line here and the summary there
  * must always read the same. Every row jumps to the person it names.
  */
 
-import {useState} from 'react';
-import {Accordion, Icon, Item} from 'semantic-ui-react';
+import {useMemo, useState} from 'react';
+import {FormattedMessage, useIntl} from 'react-intl';
+import {Accordion, Checkbox, Icon, Item} from 'semantic-ui-react';
 import {EvidenceIndex, Fact, getCurrentEvidence} from '../../util/evidence';
-import {GedcomData, getName} from '../../util/gedcom_util';
-
-const TAG_TEXT: {[tag: string]: string} = {
-  BIRT: 'Geburt',
-  CHR: 'Taufe',
-  DEAT: 'Tod',
-  BURI: 'Begräbnis',
-  MARR: 'Heirat',
-};
+import {evidenceLabels, tagLabel} from '../../util/evidence_labels';
+import {GedcomData, getName, pointerToId} from '../../util/gedcom_util';
+import {
+  ancestorsOf,
+  PlaceUse,
+  researchIndexes,
+  SourceUse,
+} from '../../util/research_index';
 
 interface Props {
   gedcom: GedcomData;
+  /** The person the panel is showing; the line filter runs upward from here. */
+  indi: string;
   onSelectIndi: (id: string) => void;
 }
 
@@ -33,7 +36,7 @@ function ownerName(fact: Fact, gedcom: GedcomData): string {
   const fam = gedcom.fams[fact.owner];
   const spouses = (fam?.tree ?? [])
     .filter((entry) => entry.tag === 'HUSB' || entry.tag === 'WIFE')
-    .map((entry) => entry.data?.replace(/@/g, ''))
+    .map((entry) => (entry.data ? pointerToId(entry.data) : undefined))
     .map((id) =>
       id && gedcom.indis[id] ? getName(gedcom.indis[id]) : undefined,
     )
@@ -41,14 +44,14 @@ function ownerName(fact: Fact, gedcom: GedcomData): string {
   return spouses.length ? spouses.join(' ⚭ ') : fact.owner;
 }
 
-/** The person a row should jump to: a family jumps to its husband or wife. */
-function ownerIndi(fact: Fact, gedcom: GedcomData): string | undefined {
-  if (!fact.ownerIsFam) return fact.owner;
+/** The people a fact belongs to: a family's fact belongs to both spouses. */
+function ownerPeople(fact: Fact, gedcom: GedcomData): string[] {
+  if (!fact.ownerIsFam) return [fact.owner];
   const fam = gedcom.fams[fact.owner];
-  const spouse = (fam?.tree ?? []).find(
-    (entry) => entry.tag === 'HUSB' || entry.tag === 'WIFE',
-  );
-  return spouse?.data?.replace(/@/g, '');
+  return (fam?.tree ?? [])
+    .filter((entry) => entry.tag === 'HUSB' || entry.tag === 'WIFE')
+    .map((entry) => (entry.data ? pointerToId(entry.data) : undefined))
+    .filter((id): id is string => !!id);
 }
 
 function Row({
@@ -87,6 +90,8 @@ function FactQueue({
   onSelectIndi: (id: string) => void;
   withQuay?: boolean;
 }) {
+  const intl = useIntl();
+  const labels = evidenceLabels(intl.locale);
   return (
     <>
       {facts.map((fact, index) => (
@@ -94,12 +99,12 @@ function FactQueue({
           key={index}
           label={ownerName(fact, gedcom)}
           suffix={
-            (TAG_TEXT[fact.tag] ?? fact.tag) +
+            tagLabel(labels, fact.tag) +
             (withQuay && fact.bestQuay !== undefined
-              ? ` · QUAY ${fact.bestQuay}`
+              ? ` · ${labels.quay(fact.bestQuay)}`
               : '')
           }
-          id={ownerIndi(fact, gedcom)}
+          id={ownerPeople(fact, gedcom)[0]}
           onSelectIndi={onSelectIndi}
         />
       ))}
@@ -130,75 +135,282 @@ function PersonQueue({
   );
 }
 
-function queues(
-  evidence: EvidenceIndex,
-  gedcom: GedcomData,
-  onSelect: (id: string) => void,
-) {
-  const q = evidence.queues;
-  return [
+function SourceList({
+  sources,
+  gedcom,
+  onSelectIndi,
+}: {
+  sources: SourceUse[];
+  gedcom: GedcomData;
+  onSelectIndi: (id: string) => void;
+}) {
+  const [open, setOpen] = useState<string | undefined>(undefined);
+  return (
+    <>
+      {sources.map((source) => (
+        <div key={source.sourceId} style={{padding: '2px 0'}}>
+          <a
+            onClick={() =>
+              setOpen(open === source.sourceId ? undefined : source.sourceId)
+            }
+            style={{cursor: 'pointer'}}
+          >
+            {source.title}
+          </a>
+          <span style={{color: '#888'}}>
+            {' '}
+            · {source.citations}
+            {source.repoWww ? (
+              <>
+                {' · '}
+                <a
+                  href={source.repoWww}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {source.repoName ?? source.repoWww}
+                </a>
+              </>
+            ) : null}
+          </span>
+          {open === source.sourceId ? (
+            <div style={{marginLeft: '1em', marginBottom: '4px'}}>
+              {source.author ? (
+                <div style={{color: '#666'}}>{source.author}</div>
+              ) : null}
+              {source.people.map((id) => (
+                <Row
+                  key={id}
+                  label={(gedcom.indis[id] && getName(gedcom.indis[id])) || id}
+                  id={id}
+                  onSelectIndi={onSelectIndi}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function PlaceList({
+  places,
+  gedcom,
+  onSelectIndi,
+}: {
+  places: PlaceUse[];
+  gedcom: GedcomData;
+  onSelectIndi: (id: string) => void;
+}) {
+  const [open, setOpen] = useState<string | undefined>(undefined);
+  return (
+    <>
+      {places.map((place) => (
+        <div key={place.place} style={{padding: '2px 0'}}>
+          <a
+            onClick={() =>
+              setOpen(open === place.place ? undefined : place.place)
+            }
+            style={{cursor: 'pointer'}}
+          >
+            {place.place}
+          </a>
+          <span style={{color: '#888'}}> · {place.events}</span>
+          {open === place.place ? (
+            <div style={{marginLeft: '1em', marginBottom: '4px'}}>
+              {place.people.map((id) => (
+                <Row
+                  key={id}
+                  label={(gedcom.indis[id] && getName(gedcom.indis[id])) || id}
+                  id={id}
+                  onSelectIndi={onSelectIndi}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </>
+  );
+}
+
+export function ResearchTab({gedcom, indi, onSelectIndi}: Props) {
+  const intl = useIntl();
+  const labels = evidenceLabels(intl.locale);
+  const [open, setOpen] = useState(-1);
+  const [lineOnly, setLineOnly] = useState(false);
+  const evidence = getCurrentEvidence();
+
+  // The ancestors of the person on screen — the "line" the filter restricts to.
+  const line = useMemo(
+    () => (lineOnly ? ancestorsOf(gedcom, indi) : undefined),
+    [gedcom, indi, lineOnly],
+  );
+  const indexes = useMemo(() => researchIndexes(gedcom), [gedcom]);
+
+  if (!evidence) return null;
+
+  const keepFact = (fact: Fact) =>
+    !line || ownerPeople(fact, gedcom).some((id) => line.has(id));
+  const keepPerson = (id: string) => !line || line.has(id);
+
+  const filtered: EvidenceIndex['queues'] = {
+    ohne: evidence.queues.ohne.filter(keepFact),
+    hinweis: evidence.queues.hinweis.filter(keepFact),
+    unexplained: evidence.queues.unexplained.filter(keepFact),
+    pending: evidence.queues.pending.filter(keepFact),
+    frontier: evidence.queues.frontier.filter(keepPerson),
+    detached: evidence.queues.detached.filter(keepPerson),
+  };
+
+  const sources = line
+    ? indexes.sources
+        .map((source) => ({
+          ...source,
+          people: source.people.filter(keepPerson),
+        }))
+        .filter((source) => source.people.length)
+    : indexes.sources;
+  const places = line
+    ? indexes.places
+        .map((place) => ({...place, people: place.people.filter(keepPerson)}))
+        .filter((place) => place.people.length)
+    : indexes.places;
+
+  const sections = [
     {
-      title: `ohne Quelle — ${q.ohne.length}`,
-      hint: 'behaupten ein Datum oder einen Ort ohne jede Zitation',
+      title: `${labels.bucket.ohne} — ${filtered.ohne.length}`,
+      hint: intl.formatMessage({
+        id: 'research.hint.ohne',
+        defaultMessage: 'assert a date or a place with no citation at all',
+      }),
       content: (
-        <FactQueue facts={q.ohne} gedcom={gedcom} onSelectIndi={onSelect} />
+        <FactQueue
+          facts={filtered.ohne}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
       ),
     },
     {
-      title: `nur Hinweis — ${q.hinweis.length}`,
-      hint: 'ruhen auf einem kompilierten Baum oder auf Familienangabe (QUAY 0–1)',
+      title: `${labels.bucket.hinweis} — ${filtered.hinweis.length}`,
+      hint: intl.formatMessage({
+        id: 'research.hint.hinweis',
+        defaultMessage:
+          'rest on a compiled tree or on family memory (QUAY 0–1)',
+      }),
       content: (
         <FactQueue
-          facts={q.hinweis}
+          facts={filtered.hinweis}
           gedcom={gedcom}
-          onSelectIndi={onSelect}
+          onSelectIndi={onSelectIndi}
           withQuay
         />
       ),
     },
     {
-      title: `davon ohne NOTE — ${q.unexplained.length}`,
-      hint: 'ohne begründenden NOTE — dokumentieren oder entfernen',
+      title: intl.formatMessage(
+        {
+          id: 'research.queue.unexplained',
+          defaultMessage: 'of those, without a NOTE — {count}',
+        },
+        {count: filtered.unexplained.length},
+      ),
+      hint: intl.formatMessage({
+        id: 'research.hint.unexplained',
+        defaultMessage: 'nothing explains the reasoning — document or remove',
+      }),
       content: (
         <FactQueue
-          facts={q.unexplained}
+          facts={filtered.unexplained}
           gedcom={gedcom}
-          onSelectIndi={onSelect}
+          onSelectIndi={onSelectIndi}
           withQuay
         />
       ),
     },
     {
-      title: `Beleg nachzutragen — ${q.pending.length}`,
-      hint: 'aus der Bieberer Ortsforschung, ohne deren Registerreferenz',
+      title: `${labels.pending} — ${filtered.pending.length}`,
+      hint: intl.formatMessage({
+        id: 'research.hint.pending',
+        defaultMessage:
+          'from the local research, without its underlying register reference',
+      }),
       content: (
-        <FactQueue facts={q.pending} gedcom={gedcom} onSelectIndi={onSelect} />
+        <FactQueue
+          facts={filtered.pending}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
       ),
     },
     {
-      title: `Eltern unbekannt — ${q.frontier.length}`,
-      hint: 'die Forschungsfront',
+      title: `${labels.frontier} — ${filtered.frontier.length}`,
+      hint: intl.formatMessage({
+        id: 'research.hint.frontier',
+        defaultMessage: 'where the research has to continue',
+      }),
       content: (
-        <PersonQueue ids={q.frontier} gedcom={gedcom} onSelectIndi={onSelect} />
+        <PersonQueue
+          ids={filtered.frontier}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
       ),
     },
     {
-      title: `nicht verbunden — ${q.detached.length}`,
-      hint: 'noch an niemanden angeschlossen',
+      title: `${labels.detached} — ${filtered.detached.length}`,
+      hint: intl.formatMessage({
+        id: 'research.hint.detached',
+        defaultMessage: 'not attached to anyone yet',
+      }),
       content: (
-        <PersonQueue ids={q.detached} gedcom={gedcom} onSelectIndi={onSelect} />
+        <PersonQueue
+          ids={filtered.detached}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
+      ),
+    },
+    {
+      title: intl.formatMessage(
+        {id: 'research.sources', defaultMessage: 'Sources — {count}'},
+        {count: sources.length},
+      ),
+      hint: intl.formatMessage({
+        id: 'research.hint.sources',
+        defaultMessage: 'how often each is cited, and by whom',
+      }),
+      content: (
+        <SourceList
+          sources={sources}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
+      ),
+    },
+    {
+      title: intl.formatMessage(
+        {id: 'research.places', defaultMessage: 'Places — {count}'},
+        {count: places.length},
+      ),
+      hint: intl.formatMessage({
+        id: 'research.hint.places',
+        defaultMessage: 'every place the file names, by number of events',
+      }),
+      content: (
+        <PlaceList
+          places={places}
+          gedcom={gedcom}
+          onSelectIndi={onSelectIndi}
+        />
       ),
     },
   ];
-}
-
-export function ResearchTab({gedcom, onSelectIndi}: Props) {
-  const [open, setOpen] = useState(-1);
-  const evidence = getCurrentEvidence();
-  if (!evidence) return null;
 
   const {summary} = evidence;
-  const sections = queues(evidence, gedcom, onSelectIndi);
+  const person = gedcom.indis[indi];
 
   return (
     <div className="research" data-testid="research">
@@ -206,13 +418,35 @@ export function ResearchTab({gedcom, onSelectIndi}: Props) {
         <Item>
           <Item.Content>
             <div style={{marginBottom: '8px'}}>
-              <b>{summary.facts} Fakten:</b> {summary.urkunde} urkundlich,{' '}
-              {summary.zweitzeuge} Zweitzeuge, {summary.hinweis} nur Hinweis,{' '}
-              {summary.ohne} ohne Quelle
+              <FormattedMessage
+                id="research.summary"
+                defaultMessage="{facts} facts: {urkunde} from records, {zweitzeuge} secondary, {hinweis} leads only, {ohne} with no source"
+                values={{
+                  facts: <b>{summary.facts}</b>,
+                  urkunde: summary.urkunde,
+                  zweitzeuge: summary.zweitzeuge,
+                  hinweis: summary.hinweis,
+                  ohne: summary.ohne,
+                }}
+              />
             </div>
+            {person ? (
+              <Checkbox
+                style={{marginBottom: '8px'}}
+                label={intl.formatMessage(
+                  {
+                    id: 'research.line_only',
+                    defaultMessage: 'only the line above {name}',
+                  },
+                  {name: getName(person) ?? indi},
+                )}
+                checked={lineOnly}
+                onChange={() => setLineOnly(!lineOnly)}
+              />
+            ) : null}
             <Accordion fluid styled>
               {sections.map((section, index) => (
-                <div key={section.title}>
+                <div key={index}>
                   <Accordion.Title
                     active={open === index}
                     onClick={() => setOpen(open === index ? -1 : index)}

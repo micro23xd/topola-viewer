@@ -48,7 +48,11 @@ export function SidePanel({
         defaultMessage: 'Research',
       }),
       render: () => (
-        <ResearchTab gedcom={data.gedcom} onSelectIndi={onSelectIndi} />
+        <ResearchTab
+          gedcom={data.gedcom}
+          indi={selectedIndiId}
+          onSelectIndi={onSelectIndi}
+        />
       ),
     },
     {

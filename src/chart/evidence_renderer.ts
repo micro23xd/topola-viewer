@@ -12,13 +12,18 @@
  */
 
 import {BaseType, Selection} from 'd3-selection';
-import {DetailedRenderer, TreeNodeSelection} from 'topola';
+import {CircleRenderer, DetailedRenderer, TreeNodeSelection} from 'topola';
 import {
   Bucket,
   Fact,
   getCurrentEvidence,
   PersonEvidence,
 } from '../util/evidence';
+import {
+  EvidenceLabels,
+  evidenceLabels,
+  tagLabel,
+} from '../util/evidence_labels';
 
 /** Height of one details line in DetailedRenderer; the dots row is one more. */
 const DETAILS_HEIGHT = 14;
@@ -28,21 +33,18 @@ interface OffsetIndiLike {
   indi: {id: string; width?: number; height?: number};
 }
 
-const FACT_LABELS: {[tag: string]: string} = {
-  BIRT: 'Geburt',
-  CHR: 'Taufe',
-  DEAT: 'Tod',
-  BURI: 'Begräbnis',
-  MARR: 'Heirat',
-};
+/** Worse of two states, so a couple's circle shows the open question. */
+const STATE_ORDER: Bucket[] = [
+  'ohne',
+  'hinweis',
+  'zweitzeuge',
+  'urkunde',
+  'keine',
+];
 
-const BUCKET_LABELS: {[key in Bucket]: string} = {
-  urkunde: 'urkundlich',
-  zweitzeuge: 'Zweitzeuge',
-  hinweis: 'nur Hinweis',
-  ohne: 'ohne Quelle',
-  keine: 'nichts belegt',
-};
+function worseState(a: Bucket, b: Bucket): Bucket {
+  return STATE_ORDER.indexOf(a) <= STATE_ORDER.indexOf(b) ? a : b;
+}
 
 /** The dots a person gets, in a fixed order, missing facts included. */
 function dotsFor(person: PersonEvidence): Array<{tag: string; fact?: Fact}> {
@@ -59,15 +61,13 @@ function dotClass(fact?: Fact): string {
   return `quay-${fact.bestQuay}`;
 }
 
-function dotTitle(tag: string, fact?: Fact): string {
-  const label = FACT_LABELS[fact?.tag ?? tag] ?? tag;
-  if (!fact) return `${label}: nicht erfasst`;
-  const quay =
-    fact.bestQuay !== undefined ? ` (QUAY ${fact.bestQuay})` : ' (ohne QUAY)';
-  const count = fact.citations.length;
-  const belege =
-    count === 0 ? 'kein Beleg' : count === 1 ? '1 Beleg' : `${count} Belege`;
-  return `${label}: ${BUCKET_LABELS[fact.bucket]}${quay}, ${belege}`;
+function dotTitle(tag: string, fact: Fact | undefined, labels: EvidenceLabels) {
+  const label = tagLabel(labels, fact?.tag ?? tag);
+  if (!fact) return `${label}: ${labels.notRecorded}`;
+  return (
+    `${label}: ${labels.bucket[fact.bucket]} (${labels.quay(fact.bestQuay)}), ` +
+    labels.citations(fact.citations.length)
+  );
 }
 
 export class EvidenceRenderer extends DetailedRenderer {
@@ -93,8 +93,19 @@ export class EvidenceRenderer extends DetailedRenderer {
       unknown
     >;
 
+    const labels = evidenceLabels(this.options.locale);
+
     const personOf = (data: OffsetIndiLike) =>
       evidence.persons.get(data.indi.id);
+
+    // A class per state on the group itself, so that "show me only the open
+    // work" is a stylesheet change rather than another render pass.
+    groups.attr('class', (data) => {
+      const person = personOf(data);
+      return `indi state-${person?.state ?? 'keine'}${
+        person?.frontier ? ' is-frontier' : ''
+      }${person?.detached ? ' is-detached' : ''}`;
+    });
 
     groups.select('rect.background').attr('class', function (data) {
       const person = personOf(data as OffsetIndiLike);
@@ -131,6 +142,25 @@ export class EvidenceRenderer extends DetailedRenderer {
         return `translate(9, ${(data.indi.height ?? 0) - 7 - bottomLine})`;
       });
 
+    // The family box carries the marriage; colour it by the marriage's own
+    // evidence rather than leaving it white next to two coloured people.
+    const families = selection.selectAll('g.family') as unknown as Selection<
+      BaseType,
+      {data: {family?: {id: string}}},
+      BaseType,
+      unknown
+    >;
+    families.select('rect').attr('class', function (node) {
+      const id = node.data.family?.id;
+      const facts = id ? (evidence.families.get(id) ?? []) : [];
+      const marriage = facts.find((fact) => fact.tag === 'MARR');
+      const existing = ((this as Element).getAttribute('class') ?? '')
+        .split(/\s+/)
+        .filter((c) => c && !c.startsWith('evidence-'))
+        .join(' ');
+      return `${existing} evidence-${marriage ? marriage.bucket : 'keine'}`;
+    });
+
     dots.each(function (data) {
       const person = personOf(data);
       if (!person) return;
@@ -148,7 +178,7 @@ export class EvidenceRenderer extends DetailedRenderer {
           'http://www.w3.org/2000/svg',
           'title',
         );
-        title.textContent = dotTitle(entry.tag, entry.fact);
+        title.textContent = dotTitle(entry.tag, entry.fact, labels);
         circle.appendChild(title);
         group.appendChild(circle);
       });
@@ -159,23 +189,23 @@ export class EvidenceRenderer extends DetailedRenderer {
     return (
       super.getCss() +
       `
-.detailed rect.background.evidence-urkunde {
+.detailed rect.evidence-urkunde {
   fill: #e3f4e1;
 }
 
-.detailed rect.background.evidence-zweitzeuge {
+.detailed rect.evidence-zweitzeuge {
   fill: #fff4d6;
 }
 
-.detailed rect.background.evidence-hinweis {
+.detailed rect.evidence-hinweis {
   fill: #ffe0c2;
 }
 
-.detailed rect.background.evidence-ohne {
+.detailed rect.evidence-ohne {
   fill: #f2f2f2;
 }
 
-.detailed rect.background.evidence-keine {
+.detailed rect.evidence-keine {
   fill: #fafafa;
 }
 
@@ -214,7 +244,62 @@ export class EvidenceRenderer extends DetailedRenderer {
   fill: #ffffff;
   stroke: #c8c8c8;
   stroke-width: 1px;
+}
+
+/* "Only the open work": everything already settled fades into the background,
+   which on a tree this size is the difference between a wall and a to-do list. */
+#chart.dim-settled g.indi.state-urkunde,
+#chart.dim-settled g.indi.state-zweitzeuge {
+  opacity: 0.25;
+}
+
+#chart.dim-settled g.family {
+  opacity: 0.4;
 }`
+    );
+  }
+}
+
+/**
+ * The same colouring on the fan chart. There is far less room here — no dots,
+ * no borders — so the circle is simply filled by the person's state, and a
+ * couple's circle takes the worse of the two.
+ */
+export class EvidenceCircleRenderer extends CircleRenderer {
+  render(enter: TreeNodeSelection, update: TreeNodeSelection): void {
+    super.render(enter, update);
+    this.decorate(enter);
+    this.decorate(update);
+  }
+
+  private decorate(selection: TreeNodeSelection) {
+    const evidence = getCurrentEvidence();
+    if (!evidence || selection.empty()) return;
+    selection.selectAll('circle').attr('class', function (node) {
+      // The circle inherits the hierarchy node, so the people are one level in.
+      const data =
+        (node as {data?: {indi?: {id: string}; spouse?: {id: string}}}).data ??
+        {};
+      const states = [data.indi?.id, data.spouse?.id]
+        .filter((id): id is string => !!id)
+        .map((id) => evidence.persons.get(id)?.state ?? 'keine');
+      const state = states.length
+        ? states.reduce((a, b) => worseState(a, b))
+        : 'keine';
+      return `evidence-${state}`;
+    });
+  }
+
+  getCss() {
+    return (
+      super.getCss() +
+      `
+    circle.evidence-urkunde { fill: #e3f4e1; }
+    circle.evidence-zweitzeuge { fill: #fff4d6; }
+    circle.evidence-hinweis { fill: #ffe0c2; }
+    circle.evidence-ohne { fill: #f2f2f2; }
+    circle.evidence-keine { fill: #fafafa; }
+    `
     );
   }
 }

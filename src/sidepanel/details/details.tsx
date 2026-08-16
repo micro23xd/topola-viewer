@@ -16,10 +16,12 @@ import {Config, Ids} from '../config/config';
 import {AdditionalFiles, FileEntry} from './additional-files';
 import {ALL_SUPPORTED_EVENT_TYPES, Events} from './events';
 import {EvidenceCard} from './evidence-card';
+import {FamilyRecord} from './family-record';
 import {ImmediateFamily} from './immediate-family';
 import {MultilineText} from './multiline-text';
 import {NoteText} from './note-text';
 import {Sources} from './sources';
+import {Timeline} from './timeline';
 import {TranslatedTag} from './translated-tag';
 import {WrappedImage} from './wrapped-image';
 
@@ -34,17 +36,20 @@ const EXCLUDED_TAGS = [
   'FACT',
 ];
 
-function dataDetails(entry: GedcomEntry) {
+function dataDetails(entry: GedcomEntry, gedcom: GedcomData) {
   const lines = [];
   if (entry.data) {
     lines.push(...getData(entry));
   }
-  entry.tree
+  const noteLines = entry.tree
     .filter((subentry) => subentry.tag === 'NOTE')
-    .forEach((note) =>
-      getData(note).forEach((line) => lines.push(<i>{line}</i>)),
-    );
-  if (!lines.length) {
+    .flatMap((note) => getData(note));
+  // Everything that is not an event still gets cited — RELI is the case in
+  // this tree, and its citation is the register entry that says so.
+  const sources = entry.tree
+    .filter((subentry) => subentry.tag === 'SOUR')
+    .map((sourceEntryReference) => mapToSource(sourceEntryReference, gedcom));
+  if (!lines.length && !noteLines.length && !sources.length) {
     return null;
   }
   return (
@@ -55,6 +60,8 @@ function dataDetails(entry: GedcomEntry) {
       <span>
         <MultilineText lines={lines} />
       </span>
+      {noteLines.length ? <NoteText lines={noteLines} gedcom={gedcom} /> : null}
+      <Sources sources={sources} />
     </>
   );
 }
@@ -315,7 +322,7 @@ function getOtherSections(entries: GedcomEntry[], gedcom: GedcomData) {
     .filter((entry) => !EXCLUDED_TAGS.includes(entry.tag))
     .map((entry) => dereference(entry, gedcom, (gedcom) => gedcom.other))
     .filter(hasData)
-    .map((entry) => dataDetails(entry))
+    .map((entry) => dataDetails(entry, gedcom))
     .filter((element) => element !== null)
     .map((element, index) => (
       <Item key={index}>
@@ -367,6 +374,7 @@ export function Details(props: Props) {
         )}
         <EvidenceCard gedcom={props.gedcom} indi={props.indi} />
         <ImmediateFamily gedcom={props.gedcom} indi={props.indi} />
+        <Timeline gedcom={props.gedcom} indi={props.indi} />
         <Events
           gedcom={props.gedcom}
           entries={entries}
@@ -381,6 +389,7 @@ export function Details(props: Props) {
           attributeDetails,
         )}
         {getOtherSections(entries, props.gedcom)}
+        <FamilyRecord gedcom={props.gedcom} indi={props.indi} />
         {getSectionForEachMatchingEntry(
           entries,
           props.gedcom,

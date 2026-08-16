@@ -25,8 +25,17 @@ export enum Sex {
   SHOW,
 }
 
+/** What the chart emphasises while colouring by evidence. */
+export enum Highlight {
+  /** Everyone at full strength. */
+  ALL,
+  /** Fade what is already proven, so only the open work stands out. */
+  OPEN_WORK,
+}
+
 export interface Config {
   color: ChartColors;
+  highlight: Highlight;
   id: Ids;
   sex: Sex;
   place: PlaceDisplay;
@@ -35,6 +44,7 @@ export interface Config {
 
 export const DEFALUT_CONFIG: Config = {
   color: ChartColors.COLOR_BY_GENERATION,
+  highlight: Highlight.ALL,
   id: Ids.SHOW,
   sex: Sex.SHOW,
   place: PlaceDisplay.FULL,
@@ -49,6 +59,13 @@ const COLOR_ARG = new Map<string, ChartColors>([
 ]);
 const COLOR_ARG_INVERSE = new Map<ChartColors, string>();
 COLOR_ARG.forEach((v, k) => COLOR_ARG_INVERSE.set(v, k));
+
+const HIGHLIGHT_ARG = new Map<string, Highlight>([
+  ['a', Highlight.ALL],
+  ['o', Highlight.OPEN_WORK],
+]);
+const HIGHLIGHT_ARG_INVERSE = new Map<Highlight, string>();
+HIGHLIGHT_ARG.forEach((v, k) => HIGHLIGHT_ARG_INVERSE.set(v, k));
 
 const ID_ARG = new Map<string, Ids>([
   ['h', Ids.HIDE],
@@ -81,6 +98,8 @@ export function argsToConfig(args: ParsedQuery<unknown>): Config {
   const placeCount = parseInt(getParam('pn') ?? '', 10);
   return {
     color: COLOR_ARG.get(getParam('c') ?? '') ?? DEFALUT_CONFIG.color,
+    highlight:
+      HIGHLIGHT_ARG.get(getParam('hl') ?? '') ?? DEFALUT_CONFIG.highlight,
     id: ID_ARG.get(getParam('i') ?? '') ?? DEFALUT_CONFIG.id,
     sex: SEX_ARG.get(getParam('s') ?? '') ?? DEFALUT_CONFIG.sex,
     place: PLACE_ARG.get(getParam('p') ?? '') ?? DEFALUT_CONFIG.place,
@@ -93,6 +112,10 @@ export function configToArgs(config: Config): ParsedQuery {
   const color = COLOR_ARG_INVERSE.get(config.color);
   if (color) {
     result.c = color;
+  }
+  const highlight = HIGHLIGHT_ARG_INVERSE.get(config.highlight);
+  if (highlight && config.highlight !== DEFALUT_CONFIG.highlight) {
+    result.hl = highlight;
   }
   const id = ID_ARG_INVERSE.get(config.id);
   if (id) {
@@ -213,6 +236,29 @@ export function ConfigPanel(props: {
                 }
               />
             </Form.Field>
+            {props.config.color === ChartColors.COLOR_BY_EVIDENCE ? (
+              <Form.Field className="no-margin" style={{marginTop: '6px'}}>
+                <Checkbox
+                  label={
+                    <FormattedMessage
+                      tagName="label"
+                      id="config.highlight.OPEN_WORK"
+                      defaultMessage="fade what is proven"
+                    />
+                  }
+                  checked={props.config.highlight === Highlight.OPEN_WORK}
+                  onChange={() =>
+                    props.onChange({
+                      ...props.config,
+                      highlight:
+                        props.config.highlight === Highlight.OPEN_WORK
+                          ? Highlight.ALL
+                          : Highlight.OPEN_WORK,
+                    })
+                  }
+                />
+              </Form.Field>
+            ) : null}
           </Item.Content>
         </Item>
         <Item>

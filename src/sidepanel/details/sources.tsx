@@ -16,14 +16,24 @@ interface Props {
  * the chart paints the same fact with.
  */
 const TIERS: {[key: number]: {text: string; color: string}} = {
-  3: {text: 'Urkunde', color: '#3a9d5d'},
-  2: {text: 'Zweitzeuge', color: '#d9a400'},
-  1: {text: 'Kompilierter Baum', color: '#e07b2a'},
-  0: {text: 'Familienangabe', color: '#e07b2a'},
+  3: {text: 'record', color: '#3a9d5d'},
+  2: {text: 'secondary witness', color: '#d9a400'},
+  1: {text: 'compiled tree', color: '#e07b2a'},
+  0: {text: 'family memory', color: '#e07b2a'},
 };
 
 function TierBadge({quay}: {quay?: number}) {
+  const intl = useIntl();
   const tier = quay !== undefined ? TIERS[quay] : undefined;
+  const text = tier
+    ? `${intl.formatMessage({
+        id: `sources.tier.${quay}`,
+        defaultMessage: tier.text,
+      })} · QUAY ${quay}`
+    : intl.formatMessage({
+        id: 'sources.tier.none',
+        defaultMessage: 'no QUAY',
+      });
   return (
     <Label
       size="mini"
@@ -34,13 +44,14 @@ function TierBadge({quay}: {quay?: number}) {
         verticalAlign: 'middle',
       }}
     >
-      {tier ? `${tier.text} · QUAY ${quay}` : 'ohne QUAY'}
+      {text}
     </Label>
   );
 }
 
 /** What the source itself is, and how to reach it. Shown on demand. */
 function SourceNote({source}: {source: Source}) {
+  const intl = useIntl();
   const [open, setOpen] = useState(false);
   if (!source.sourceNotes.length) return null;
   return (
@@ -50,7 +61,10 @@ function SourceNote({source}: {source: Source}) {
         style={{cursor: 'pointer', fontSize: '0.9em'}}
       >
         <Icon name={open ? 'caret down' : 'caret right'} />
-        Über die Quelle
+        {intl.formatMessage({
+          id: 'sources.about',
+          defaultMessage: 'About the source',
+        })}
       </a>
       {open ? (
         <div style={{color: '#666', fontSize: '0.95em', marginLeft: '1em'}}>

@@ -99,3 +99,44 @@ export const GET_DESCENDANTS: ToolDefinition = {
     required: ['id'],
   },
 };
+
+export const GET_EVIDENCE_SUMMARY: ToolDefinition = {
+  name: 'get_evidence_summary',
+  description:
+    'Returns how well the whole file is evidenced: how many dated or placed facts rest on a record, on a secondary witness, on a compiled tree or on nothing, plus the size of each research queue (facts without a citation, facts resting only on a lead, those without an explaining note, citations still to be filled in, people whose parents are unknown, and people not attached to the tree).',
+  inputSchema: {type: 'object', properties: {}},
+};
+
+export const GET_PERSON_EVIDENCE: ToolDefinition = {
+  name: 'get_person_evidence',
+  description:
+    "Returns the evidence behind one person: every dated or placed fact with the tier it rests on (QUAY 3 record, 2 secondary witness, 1 compiled tree, 0 family memory), the sources and pages cited for it, and whether the person's parents are unknown or the person is unattached.",
+  inputSchema: {
+    type: 'object',
+    properties: {
+      id: {type: 'string', description: 'The ID of the individual.'},
+    },
+    required: ['id'],
+  },
+};
+
+export const LIST_RESEARCH_QUEUE: ToolDefinition = {
+  name: 'list_research_queue',
+  description:
+    'Lists one research queue: the facts or people still needing work. Use get_evidence_summary first to see how large each queue is.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      queue: {
+        type: 'string',
+        description:
+          'One of: no_source, lead_only, unexplained, citation_outstanding, parents_unknown, unattached.',
+      },
+      limit: {
+        type: 'number',
+        description: 'Maximum rows to return; defaults to 50.',
+      },
+    },
+    required: ['queue'],
+  },
+};

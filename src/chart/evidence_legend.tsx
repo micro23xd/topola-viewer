@@ -3,27 +3,32 @@
  * Shown only while the chart is coloured by evidence.
  */
 
-import {EvidenceIndex} from '../util/evidence';
+import {useIntl} from 'react-intl';
+import {Bucket, EvidenceIndex} from '../util/evidence';
+import {evidenceLabels} from '../util/evidence_labels';
 
-const BOXES: Array<{fill: string; label: string}> = [
-  {fill: '#e3f4e1', label: 'urkundlich'},
-  {fill: '#fff4d6', label: 'Zweitzeuge'},
-  {fill: '#ffe0c2', label: 'nur Hinweis'},
-  {fill: '#f2f2f2', label: 'ohne Quelle'},
-  {fill: '#fafafa', label: 'nichts belegt'},
-];
+const BOX_FILLS: {[key in Bucket]: string} = {
+  urkunde: '#e3f4e1',
+  zweitzeuge: '#fff4d6',
+  hinweis: '#ffe0c2',
+  ohne: '#f2f2f2',
+  keine: '#fafafa',
+};
 
-const BORDERS: Array<{stroke: string; label: string}> = [
-  {stroke: '#c0392b', label: 'Eltern unbekannt'},
-  {stroke: '#7d5ba6', label: 'nicht verbunden'},
+const BOX_ORDER: Bucket[] = [
+  'urkunde',
+  'zweitzeuge',
+  'hinweis',
+  'ohne',
+  'keine',
 ];
 
 const DOTS: Array<{fill: string; stroke?: string; label: string}> = [
   {fill: '#3a9d5d', label: 'QUAY 3'},
   {fill: '#d9a400', label: 'QUAY 2'},
   {fill: '#e07b2a', label: 'QUAY 0–1'},
-  {fill: '#9a9a9a', label: 'ohne QUAY'},
-  {fill: '#ffffff', stroke: '#c8c8c8', label: 'nicht erfasst'},
+  {fill: '#9a9a9a', label: ''},
+  {fill: '#ffffff', stroke: '#c8c8c8', label: ''},
 ];
 
 interface Props {
@@ -31,6 +36,17 @@ interface Props {
 }
 
 export function EvidenceLegend({evidence}: Props) {
+  const intl = useIntl();
+  const labels = evidenceLabels(intl.locale);
+  const dots = DOTS.map((dot, index) => ({
+    ...dot,
+    label:
+      dot.label || (index === 3 ? labels.quay(undefined) : labels.notRecorded),
+  }));
+  const borders = [
+    {stroke: '#c0392b', label: labels.frontier},
+    {stroke: '#7d5ba6', label: labels.detached},
+  ];
   const row: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
@@ -55,23 +71,25 @@ export function EvidenceLegend({evidence}: Props) {
         pointerEvents: 'none',
       }}
     >
-      <div style={{fontWeight: 'bold', marginBottom: '4px'}}>Belege</div>
-      {BOXES.map((box) => (
-        <div key={box.label} style={row}>
+      <div style={{fontWeight: 'bold', marginBottom: '4px'}}>
+        {labels.header}
+      </div>
+      {BOX_ORDER.map((bucket) => (
+        <div key={bucket} style={row}>
           <span
             style={{
               width: '14px',
               height: '10px',
-              background: box.fill,
+              background: BOX_FILLS[bucket],
               border: '1px solid #333',
               borderRadius: '2px',
             }}
           />
-          {box.label}
+          {labels.bucket[bucket]}
         </div>
       ))}
       <div style={{height: '5px'}} />
-      {BORDERS.map((border) => (
+      {borders.map((border) => (
         <div key={border.label} style={row}>
           <span
             style={{
@@ -86,8 +104,8 @@ export function EvidenceLegend({evidence}: Props) {
         </div>
       ))}
       <div style={{height: '5px'}} />
-      <div style={{marginBottom: '2px'}}>Punkte: Geburt · Tod · Heirat</div>
-      {DOTS.map((dot) => (
+      <div style={{marginBottom: '2px'}}>{labels.dotsCaption}</div>
+      {dots.map((dot) => (
         <div key={dot.label} style={row}>
           <span
             style={{
@@ -110,10 +128,10 @@ export function EvidenceLegend({evidence}: Props) {
             color: '#666',
           }}
         >
-          {evidence.summary.facts} Fakten: {evidence.summary.urkunde}{' '}
-          urkundlich, {evidence.summary.zweitzeuge} Zweitzeuge,{' '}
-          {evidence.summary.hinweis} nur Hinweis, {evidence.summary.ohne} ohne
-          Quelle
+          {evidence.summary.facts} · {evidence.summary.urkunde}{' '}
+          {labels.bucket.urkunde} · {evidence.summary.zweitzeuge}{' '}
+          {labels.bucket.zweitzeuge} · {evidence.summary.hinweis}{' '}
+          {labels.bucket.hinweis} · {evidence.summary.ohne} {labels.bucket.ohne}
         </div>
       ) : null}
     </div>

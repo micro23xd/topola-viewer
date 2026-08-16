@@ -2,7 +2,13 @@ import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals';
 import * as H from 'history';
 import {ChartType} from '../chart/chart_types';
 import {DataSourceEnum} from '../datasource/data_source';
-import {ChartColors, Ids, PlaceDisplay, Sex} from '../sidepanel/config/config';
+import {
+  ChartColors,
+  Highlight,
+  Ids,
+  PlaceDisplay,
+  Sex,
+} from '../sidepanel/config/config';
 import {
   getArguments,
   getParamFromSearch,
@@ -115,6 +121,7 @@ describe('url_args', () => {
       expect(args.showSidePanel).toBe(true); // default on desktop
       expect(args.config).toEqual({
         color: ChartColors.COLOR_BY_GENERATION,
+        highlight: Highlight.ALL,
         id: Ids.SHOW,
         sex: Sex.SHOW,
         place: PlaceDisplay.FULL,
@@ -275,11 +282,18 @@ describe('url_args', () => {
       const args = getArguments(createLocation('?c=s&i=h&s=h&p=s&pn=5'));
       expect(args.config).toEqual({
         color: ChartColors.COLOR_BY_SEX,
+        highlight: Highlight.ALL,
         id: Ids.HIDE,
         sex: Sex.HIDE,
         place: PlaceDisplay.SHORT,
         placeCount: 5,
       });
+    });
+
+    it('parses the evidence colouring and its highlight mode', () => {
+      const args = getArguments(createLocation('?c=e&hl=o'));
+      expect(args.config.color).toBe(ChartColors.COLOR_BY_EVIDENCE);
+      expect(args.config.highlight).toBe(Highlight.OPEN_WORK);
     });
   });
 

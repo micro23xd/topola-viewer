@@ -1,4 +1,4 @@
-import {useCallback, useMemo} from 'react';
+import {useCallback, useEffect, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {Loader, SidebarPushable, SidebarPusher} from 'semantic-ui-react';
 import {IndiInfo} from 'topola';
@@ -21,7 +21,13 @@ import {useUrlState} from '../hooks/use_url_state';
 import {useWebMcpBridge} from '../hooks/use_webmcp_bridge';
 import {GoogleAuthModal} from '../menu/google_auth_modal';
 import {TopBar} from '../menu/top_bar';
-import {ChartColors, Config, Ids, Sex} from '../sidepanel/config/config';
+import {
+  ChartColors,
+  Config,
+  Highlight,
+  Ids,
+  Sex,
+} from '../sidepanel/config/config';
 import {SidePanel} from '../sidepanel/side-panel';
 import {analyticsEvent} from '../util/analytics';
 import {computeEvidence, setCurrentEvidence} from '../util/evidence';
@@ -124,6 +130,16 @@ export function ViewPage() {
     [data],
   );
   useMemo(() => setCurrentEvidence(evidence), [evidence]);
+
+  // Fading the settled people is a class on the chart, not another render pass.
+  useEffect(() => {
+    const chart = document.getElementById('chart');
+    chart?.classList.toggle(
+      'dim-settled',
+      config.color === ChartColors.COLOR_BY_EVIDENCE &&
+        config.highlight === Highlight.OPEN_WORK,
+    );
+  });
 
   useWebMcpBridge(data, detailIndi, onSelection);
 

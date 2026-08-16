@@ -14,8 +14,26 @@ import {GedcomData, pointerToId} from '../../util/gedcom_util';
 import {LinkifyNewTab} from './linkify-new-tab';
 import {PersonLink} from './person-link';
 
-/** An `@I123@`, `@FBIE29@` or `@S_KB_BIEBER@` anywhere in the line. */
-const XREF = /@([A-Z][A-Z0-9_]*)@/g;
+/**
+ * An `@I123@`, `@FBIE29@` or `@S_KB_BIEBER@`, or a path into the research notes
+ * that live beside the GEDCOM (`docs/bauer-line.md`), anywhere in the line.
+ */
+const REFERENCE = /@([A-Z][A-Z0-9_]*)@|((?:docs|sources)\/[\w./-]+\.md)/g;
+
+/**
+ * Where a `docs/...` path points, when the file is being served from the
+ * directory above the GEDCOM — which is what `make view` does. Anywhere else
+ * there is nothing sensible to link to, and the path stays plain text.
+ */
+function docHref(path: string): string | undefined {
+  const hash = window.location.hash;
+  const query = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : '';
+  const url = new URLSearchParams(query).get('url');
+  if (!url || !url.startsWith('/')) return undefined;
+  const gedcomDir = url.substring(0, url.lastIndexOf('/'));
+  const parent = gedcomDir.substring(0, gedcomDir.lastIndexOf('/') + 1);
+  return parent + path;
+}
 
 interface Props {
   lines: string[];
@@ -75,8 +93,8 @@ function renderLine(line: string, gedcom: GedcomData): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
-  XREF.lastIndex = 0;
-  while ((match = XREF.exec(line)) !== null) {
+  REFERENCE.lastIndex = 0;
+  while ((match = REFERENCE.exec(line)) !== null) {
     if (match.index > last) {
       parts.push(
         <LinkifyNewTab key={`t${last}`}>
@@ -84,8 +102,19 @@ function renderLine(line: string, gedcom: GedcomData): React.ReactNode {
         </LinkifyNewTab>,
       );
     }
+    const href = match[2] ? docHref(match[2]) : undefined;
     parts.push(
-      <span key={`r${match.index}`}>{reference(match[1], gedcom)}</span>,
+      <span key={`r${match.index}`}>
+        {match[1] ? (
+          reference(match[1], gedcom)
+        ) : href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            {match[2]}
+          </a>
+        ) : (
+          match[2]
+        )}
+      </span>,
     );
     last = match.index + match[0].length;
   }
