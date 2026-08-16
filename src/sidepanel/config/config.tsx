@@ -33,6 +33,32 @@ export enum Highlight {
   OPEN_WORK,
 }
 
+/**
+ * What the ancestor network draws. Every one of these is a checkbox on the
+ * chart itself rather than in this panel, because they only mean anything while
+ * you are looking at that view.
+ */
+export interface NetworkOptions {
+  /** A dot per fact, coloured by that fact's own QUAY. */
+  dots: boolean;
+  /** Colour the node joining a couple by the marriage's evidence. */
+  marriage: boolean;
+  /** "3 Belege" on the box. */
+  citations: boolean;
+  /** The x3 badge on someone a pedigree chart would draw three times. */
+  badges: boolean;
+  /** Names only, to fit the shape of a large ancestry on one screen. */
+  compact: boolean;
+}
+
+export const DEFAULT_NETWORK_OPTIONS: NetworkOptions = {
+  dots: true,
+  marriage: true,
+  citations: true,
+  badges: true,
+  compact: false,
+};
+
 export interface Config {
   color: ChartColors;
   highlight: Highlight;
@@ -40,6 +66,7 @@ export interface Config {
   sex: Sex;
   place: PlaceDisplay;
   placeCount: number;
+  network: NetworkOptions;
 }
 
 export const DEFALUT_CONFIG: Config = {
@@ -49,6 +76,7 @@ export const DEFALUT_CONFIG: Config = {
   sex: Sex.SHOW,
   place: PlaceDisplay.FULL,
   placeCount: DEFAULT_PLACE_DISPLAY_COUNT,
+  network: DEFAULT_NETWORK_OPTIONS,
 };
 
 const COLOR_ARG = new Map<string, ChartColors>([
@@ -89,6 +117,34 @@ const PLACE_ARG = new Map<string, PlaceDisplay>([
 const PLACE_ARG_INVERSE = new Map<PlaceDisplay, string>();
 PLACE_ARG.forEach((v, k) => PLACE_ARG_INVERSE.set(v, k));
 
+/** `nw=dmcb`: one letter per switch, so five options cost one argument. */
+const NETWORK_ARG: Array<[keyof NetworkOptions, string]> = [
+  ['dots', 'd'],
+  ['marriage', 'm'],
+  ['citations', 'c'],
+  ['badges', 'b'],
+  ['compact', 'k'],
+];
+
+function argToNetwork(arg: string | undefined): NetworkOptions {
+  if (arg === undefined) return DEFAULT_NETWORK_OPTIONS;
+  const on = new Set(arg.split(''));
+  return NETWORK_ARG.reduce(
+    (options, [key, letter]) => ({...options, [key]: on.has(letter)}),
+    {} as NetworkOptions,
+  );
+}
+
+function networkToArg(options: NetworkOptions): string {
+  // "-" rather than "" for nothing switched on: an empty value does not
+  // reliably survive a query string, and everything-off has to be sayable.
+  return (
+    NETWORK_ARG.filter(([key]) => options[key])
+      .map(([, letter]) => letter)
+      .join('') || '-'
+  );
+}
+
 export function argsToConfig(args: ParsedQuery<unknown>): Config {
   const getParam = (name: string) => {
     const value = args[name];
@@ -104,6 +160,7 @@ export function argsToConfig(args: ParsedQuery<unknown>): Config {
     sex: SEX_ARG.get(getParam('s') ?? '') ?? DEFALUT_CONFIG.sex,
     place: PLACE_ARG.get(getParam('p') ?? '') ?? DEFALUT_CONFIG.place,
     placeCount: placeCount >= 1 ? placeCount : DEFALUT_CONFIG.placeCount,
+    network: argToNetwork(getParam('nw')),
   };
 }
 
@@ -124,6 +181,10 @@ export function configToArgs(config: Config): ParsedQuery {
   const sex = SEX_ARG_INVERSE.get(config.sex);
   if (sex) {
     result.s = sex;
+  }
+  const network = networkToArg(config.network);
+  if (network !== networkToArg(DEFAULT_NETWORK_OPTIONS)) {
+    result.nw = network;
   }
   const place = PLACE_ARG_INVERSE.get(config.place);
   if (place && config.place !== PlaceDisplay.FULL) {

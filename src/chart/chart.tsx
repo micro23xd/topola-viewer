@@ -1,11 +1,27 @@
 import {useEffect, useMemo, useRef} from 'react';
 import {useIntl} from 'react-intl';
-import {PlaceDisplay} from '../sidepanel/config/config';
+import {NetworkOptions, PlaceDisplay} from '../sidepanel/config/config';
 import {Media} from '../util/media';
 import {DEFAULT_PLACE_DISPLAY_COUNT, shortenPlace} from '../util/place_util';
 import {usePrevious} from '../util/previous-hook';
 import {ChartProps} from './chart_types';
 import {ChartWrapper, ZOOM_FACTOR} from './chart_wrapper';
+
+/**
+ * By value, not by identity: the config object is rebuilt from the URL on every
+ * render, so comparing references would redraw the whole chart continuously.
+ */
+function sameNetworkOptions(a?: NetworkOptions, b?: NetworkOptions) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.dots === b.dots &&
+    a.marriage === b.marriage &&
+    a.citations === b.citations &&
+    a.badges === b.badges &&
+    a.compact === b.compact
+  );
+}
 
 export function Chart(props: ChartProps) {
   const chartWrapper = useRef(new ChartWrapper());
@@ -57,7 +73,8 @@ export function Chart(props: ChartProps) {
         props.hideIds !== prevProps?.hideIds ||
         props.hideSex !== prevProps?.hideSex ||
         props.placeDisplay !== prevProps?.placeDisplay ||
-        props.placeCount !== prevProps?.placeCount;
+        props.placeCount !== prevProps?.placeCount ||
+        !sameNetworkOptions(props.network, prevProps?.network);
       const resetPosition =
         props.chartType !== prevProps?.chartType ||
         props.data !== prevProps.data ||

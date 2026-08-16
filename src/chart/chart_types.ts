@@ -8,7 +8,13 @@ import {
   RelativesChart,
   ChartColors as TopolaChartColors,
 } from 'topola';
-import {ChartColors, Ids, PlaceDisplay, Sex} from '../sidepanel/config/config';
+import {
+  ChartColors,
+  Ids,
+  NetworkOptions,
+  PlaceDisplay,
+  Sex,
+} from '../sidepanel/config/config';
 import {EvidenceCircleRenderer, EvidenceRenderer} from './evidence_renderer';
 
 /** Supported chart types. */
@@ -33,6 +39,8 @@ export interface ChartProps {
   hideSex?: Sex;
   placeDisplay?: PlaceDisplay;
   placeCount?: number;
+  /** What the ancestor network draws; ignored by every other chart. */
+  network?: NetworkOptions;
   /** Called once after the initial D3 layout and SVG render completes. */
   onFirstRender?: () => void;
 }

@@ -202,6 +202,55 @@ function rank(
 }
 
 /**
+ * Everything above this person: their own ancestry, and nothing else.
+ *
+ * Deliberately never walks a union's *children*. With pedigree collapse a
+ * sibling can be an ancestor of the root by some other line, but they are still
+ * not an ancestor of this person, and lighting up their branch would say that
+ * they were.
+ */
+export function ancestorCone(network: AncestorNetwork, personId: string) {
+  const people = new Set<string>();
+  const familyUnions = new Set<string>();
+  const stack = [personId];
+  while (stack.length) {
+    const id = stack.pop() as string;
+    if (people.has(id)) continue;
+    people.add(id);
+    (network.persons.get(id)?.origins ?? []).forEach((famId) => {
+      familyUnions.add(famId);
+      (network.unions.get(famId)?.parents ?? []).forEach((parent) =>
+        stack.push(parent),
+      );
+    });
+  }
+  return {people, unions: familyUnions};
+}
+
+/**
+ * The whole line running through one person — their ancestry above, their
+ * descent to the root below — and the people who married into it.
+ *
+ * The partners matter because of how the highlight reads: at every union on the
+ * line exactly one parent carries the descent, and drawing the other one as
+ * faded while the line still runs out of their box says they are both connected
+ * and not. They are on the chart for a reason; they are just not blood.
+ */
+export function lineThrough(network: AncestorNetwork, personId: string) {
+  const up = ancestorCone(network, personId);
+  const down = descentCone(network, personId);
+  const blood = new Set([...up.people, ...down.people]);
+  const unions = new Set([...up.unions, ...down.unions]);
+  const partners = new Set<string>();
+  unions.forEach((famId) =>
+    (network.unions.get(famId)?.parents ?? []).forEach((parent) => {
+      if (!blood.has(parent)) partners.add(parent);
+    }),
+  );
+  return {blood, partners, unions};
+}
+
+/**
  * Everything between this person and the root: the lines of descent that put
  * them on the chart in the first place.
  */

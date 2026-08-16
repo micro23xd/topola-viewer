@@ -1,6 +1,11 @@
 import {describe, expect, it} from '@jest/globals';
 import {JsonGedcomData} from 'topola';
-import {buildAncestorNetwork, descentCone} from './graph';
+import {
+  ancestorCone,
+  buildAncestorNetwork,
+  descentCone,
+  lineThrough,
+} from './graph';
 
 /**
  * A cousin marriage, which is what pedigree collapse looks like at its
@@ -104,6 +109,31 @@ describe('the ancestor network', () => {
     const cone = descentCone(network, 'C');
     expect(Array.from(cone.people).sort()).toEqual(['A', 'C', 'R']);
     expect(Array.from(cone.unions).sort()).toEqual(['fAB', 'fCD']);
+  });
+
+  it('walks up without wandering into a sibling branch', () => {
+    const network = buildAncestorNetwork(cousinMarriage(), 'R');
+    const cone = ancestorCone(network, 'C');
+    // C's own ancestry: his parents, not his brother E and not E's descendants.
+    expect(Array.from(cone.people).sort()).toEqual(['C', 'G', 'H']);
+    expect(Array.from(cone.unions).sort()).toEqual(['fGH']);
+  });
+
+  it('joins the two halves into one line, and names who married into it', () => {
+    const network = buildAncestorNetwork(cousinMarriage(), 'R');
+    const line = lineThrough(network, 'C');
+    // Up: C, G, H. Down: C, A, R. Nothing from the E branch.
+    expect(Array.from(line.blood).sort()).toEqual(['A', 'C', 'G', 'H', 'R']);
+    // D married C, and B married A. Both are on the chart, neither is blood.
+    expect(Array.from(line.partners).sort()).toEqual(['B', 'D']);
+    expect(Array.from(line.unions).sort()).toEqual(['fAB', 'fCD', 'fGH']);
+  });
+
+  it('has no partners when the line is the whole ancestry', () => {
+    const network = buildAncestorNetwork(cousinMarriage(), 'R');
+    const line = lineThrough(network, 'R');
+    expect(line.blood.size).toBe(9);
+    expect(Array.from(line.partners)).toEqual([]);
   });
 
   it('is empty when the root is not in the file', () => {

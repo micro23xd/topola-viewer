@@ -208,12 +208,11 @@ export class ChartWrapper {
           ? new AncestorNetworkChart({
               json: props.data,
               svgSelector: '#chart',
-              indiCallback: (info) =>
-                info.modifiers?.shiftKey
-                  ? props.onDetailSelection(info)
-                  : props.onSelection(info),
+              onSelect: props.onSelection,
+              onDetail: props.onDetailSelection,
               colors: props.colors,
               locale: intl.locale,
+              network: props.network,
             })
           : createChart({
               json: props.data,

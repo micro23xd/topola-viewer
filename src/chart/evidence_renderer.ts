@@ -13,17 +13,9 @@
 
 import {BaseType, Selection} from 'd3-selection';
 import {CircleRenderer, DetailedRenderer, TreeNodeSelection} from 'topola';
-import {
-  Bucket,
-  Fact,
-  getCurrentEvidence,
-  PersonEvidence,
-} from '../util/evidence';
-import {
-  EvidenceLabels,
-  evidenceLabels,
-  tagLabel,
-} from '../util/evidence_labels';
+import {Bucket, getCurrentEvidence} from '../util/evidence';
+import {evidenceLabels} from '../util/evidence_labels';
+import {dotClass, dotCss, dotsFor, dotTitle} from './evidence_dots';
 
 /** Height of one details line in DetailedRenderer; the dots row is one more. */
 const DETAILS_HEIGHT = 14;
@@ -44,30 +36,6 @@ const STATE_ORDER: Bucket[] = [
 
 function worseState(a: Bucket, b: Bucket): Bucket {
   return STATE_ORDER.indexOf(a) <= STATE_ORDER.indexOf(b) ? a : b;
-}
-
-/** The dots a person gets, in a fixed order, missing facts included. */
-function dotsFor(person: PersonEvidence): Array<{tag: string; fact?: Fact}> {
-  return [
-    {tag: 'BIRT', fact: person.birthLike},
-    {tag: 'DEAT', fact: person.deathLike},
-    ...person.marriages.map((fact) => ({tag: 'MARR', fact})),
-  ];
-}
-
-function dotClass(fact?: Fact): string {
-  if (!fact) return 'quay-missing';
-  if (fact.bestQuay === undefined) return 'quay-none';
-  return `quay-${fact.bestQuay}`;
-}
-
-function dotTitle(tag: string, fact: Fact | undefined, labels: EvidenceLabels) {
-  const label = tagLabel(labels, fact?.tag ?? tag);
-  if (!fact) return `${label}: ${labels.notRecorded}`;
-  return (
-    `${label}: ${labels.bucket[fact.bucket]} (${labels.quay(fact.bestQuay)}), ` +
-    labels.citations(fact.citations.length)
-  );
 }
 
 export class EvidenceRenderer extends DetailedRenderer {
@@ -219,33 +187,9 @@ export class EvidenceRenderer extends DetailedRenderer {
   stroke-width: 2.5px;
 }
 
-.detailed .evidence-dots circle.fact {
-  stroke: none;
-}
-
-.detailed .evidence-dots circle.quay-3 {
-  fill: #3a9d5d;
-}
-
-.detailed .evidence-dots circle.quay-2 {
-  fill: #d9a400;
-}
-
-.detailed .evidence-dots circle.quay-1,
-.detailed .evidence-dots circle.quay-0 {
-  fill: #e07b2a;
-}
-
-.detailed .evidence-dots circle.quay-none {
-  fill: #9a9a9a;
-}
-
-.detailed .evidence-dots circle.quay-missing {
-  fill: #ffffff;
-  stroke: #c8c8c8;
-  stroke-width: 1px;
-}
-
+` +
+      dotCss('.detailed .evidence-dots') +
+      `
 /* "Only the open work": everything already settled fades into the background,
    which on a tree this size is the difference between a wall and a to-do list. */
 #chart.dim-settled g.indi.state-urkunde,

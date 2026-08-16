@@ -4,6 +4,7 @@ import {ChartType} from '../chart/chart_types';
 import {DataSourceEnum} from '../datasource/data_source';
 import {
   ChartColors,
+  DEFAULT_NETWORK_OPTIONS,
   Highlight,
   Ids,
   PlaceDisplay,
@@ -126,6 +127,7 @@ describe('url_args', () => {
         sex: Sex.SHOW,
         place: PlaceDisplay.FULL,
         placeCount: 2,
+        network: DEFAULT_NETWORK_OPTIONS,
       });
     });
 
@@ -287,6 +289,7 @@ describe('url_args', () => {
         sex: Sex.HIDE,
         place: PlaceDisplay.SHORT,
         placeCount: 5,
+        network: DEFAULT_NETWORK_OPTIONS,
       });
     });
 
@@ -294,6 +297,25 @@ describe('url_args', () => {
       const args = getArguments(createLocation('?c=e&hl=o'));
       expect(args.config.color).toBe(ChartColors.COLOR_BY_EVIDENCE);
       expect(args.config.highlight).toBe(Highlight.OPEN_WORK);
+    });
+
+    it("reads the ancestor network's display switches from one argument", () => {
+      expect(getArguments(createLocation('?nw=dk')).config.network).toEqual({
+        dots: true,
+        marriage: false,
+        citations: false,
+        badges: false,
+        compact: true,
+      });
+      // Everything off has to be sayable, and must not fall back to the
+      // defaults the way a missing argument does.
+      expect(getArguments(createLocation('?nw=-')).config.network).toEqual({
+        dots: false,
+        marriage: false,
+        citations: false,
+        badges: false,
+        compact: false,
+      });
     });
   });
 

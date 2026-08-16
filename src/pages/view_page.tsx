@@ -11,6 +11,7 @@ import {
 } from '../chart/chart_export';
 import {ChartType} from '../chart/chart_types';
 import {EvidenceLegend} from '../chart/evidence_legend';
+import {NetworkControls} from '../chart/network/network_controls';
 import {ErrorMessage, ErrorPopup} from '../components/error_display';
 import {ProgressPill} from '../components/progress_pill';
 import {DataSourceEnum} from '../datasource/data_source';
@@ -212,6 +213,7 @@ export function ViewPage() {
         hideSex={config.sex}
         placeDisplay={config.place}
         placeCount={config.placeCount}
+        network={config.network}
         onFirstRender={() => setLoadingStatus('')}
       />
     );
@@ -249,13 +251,34 @@ export function ViewPage() {
               />
               <SidebarPusher>
                 {renderChart(selection)}
-                {config.color === ChartColors.COLOR_BY_EVIDENCE &&
-                chartType !== ChartType.Donatso ? (
-                  <EvidenceLegend
-                    evidence={evidence}
-                    network={chartType === ChartType.Network}
-                  />
-                ) : null}
+                <div
+                  className="chart-overlays"
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    bottom: '12px',
+                    zIndex: 5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    alignItems: 'flex-start',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {chartType === ChartType.Network ? (
+                    <NetworkControls
+                      config={config}
+                      onChange={onConfigChange}
+                    />
+                  ) : null}
+                  {config.color === ChartColors.COLOR_BY_EVIDENCE &&
+                  chartType !== ChartType.Donatso ? (
+                    <EvidenceLegend
+                      evidence={evidence}
+                      network={chartType === ChartType.Network}
+                    />
+                  ) : null}
+                </div>
               </SidebarPusher>
             </SidebarPushable>
           </div>

@@ -59,10 +59,9 @@ export function EvidenceLegend({evidence, network}: Props) {
     <div
       className="evidence-legend"
       style={{
-        position: 'absolute',
-        left: '12px',
-        bottom: '12px',
-        zIndex: 5,
+        // Positioned by the overlay stack in view_page, so it and the network's
+        // display card can sit above one another without either guessing the
+        // other's height.
         background: 'rgba(255, 255, 255, 0.94)',
         border: '1px solid #d4d4d5',
         borderRadius: '4px',
