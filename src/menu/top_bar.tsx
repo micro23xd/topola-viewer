@@ -100,6 +100,13 @@ export function TopBar(props: Props) {
             defaultMessage="Donatso family chart"
           />
         </Dropdown.Item>
+        <Dropdown.Item onClick={() => changeView('network')}>
+          <Icon name="sitemap" />
+          <FormattedMessage
+            id="menu.network"
+            defaultMessage="Ancestor network"
+          />
+        </Dropdown.Item>
         <Dropdown.Item onClick={() => changeView('fancy')}>
           <Icon name="users" />
           <FormattedMessage

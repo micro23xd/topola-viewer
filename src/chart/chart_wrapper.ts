@@ -14,9 +14,11 @@ import {ChartHandle, ChartInfo, createChart} from 'topola';
 import {
   chartColors,
   ChartProps,
+  ChartType,
   getChartType,
   getRendererType,
 } from './chart_types';
+import {AncestorNetworkChart} from './network/network_chart';
 
 /** How much to zoom when using the +/- buttons. */
 const ZOOM_FACTOR = 1.3;
@@ -197,30 +199,46 @@ export class ChartWrapper {
 
     if (args.initialRender || !this.chart) {
       (select('#chart').node() as HTMLElement).innerHTML = '';
-      this.chart = createChart({
-        json: props.data,
-        chartType: getChartType(props.chartType),
-        renderer: getRendererType(props.chartType, props.colors),
-        svgSelector: '#chart',
-        indiCallback: (info) => {
-          // ths is called when an individual is selected in the chart
-          if (info.modifiers?.shiftKey) {
-            // If the shift key is pressed, we just update the details tab without changing the selection in the chart.
-            // This allows users to quickly view details of multiple individuals without losing their place in the chart.
-            props.onDetailSelection(info);
-          } else {
-            // If the shift key is not pressed, we update the selection in the chart as usual.
-            props.onSelection(info);
-          }
-        },
-        colors:
-          props.colors !== undefined
-            ? chartColors.get(props.colors)
-            : undefined,
-        animate: true,
-        updateSvgSize: false,
-        locale: intl.locale,
-      });
+      select('#chart').attr('class', null);
+      // The ancestor network is not a topola chart -- it is a graph, not a
+      // tree -- but it offers the same handle and draws into the same group,
+      // so everything downstream of here is unaware of the difference.
+      this.chart =
+        props.chartType === ChartType.Network
+          ? new AncestorNetworkChart({
+              json: props.data,
+              svgSelector: '#chart',
+              indiCallback: (info) =>
+                info.modifiers?.shiftKey
+                  ? props.onDetailSelection(info)
+                  : props.onSelection(info),
+              colors: props.colors,
+              locale: intl.locale,
+            })
+          : createChart({
+              json: props.data,
+              chartType: getChartType(props.chartType),
+              renderer: getRendererType(props.chartType, props.colors),
+              svgSelector: '#chart',
+              indiCallback: (info) => {
+                // ths is called when an individual is selected in the chart
+                if (info.modifiers?.shiftKey) {
+                  // If the shift key is pressed, we just update the details tab without changing the selection in the chart.
+                  // This allows users to quickly view details of multiple individuals without losing their place in the chart.
+                  props.onDetailSelection(info);
+                } else {
+                  // If the shift key is not pressed, we update the selection in the chart as usual.
+                  props.onSelection(info);
+                }
+              },
+              colors:
+                props.colors !== undefined
+                  ? chartColors.get(props.colors)
+                  : undefined,
+              animate: true,
+              updateSvgSize: false,
+              locale: intl.locale,
+            });
     } else {
       this.chart.setData(props.data);
     }
@@ -286,6 +304,16 @@ export class ChartWrapper {
       );
       parent.scrollLeft = saved.scrollLeft;
       parent.scrollTop = saved.scrollTop;
+    } else if (args.initialRender && props.chartType === ChartType.Network) {
+      // The network is far wider than it is tall and the whole point of it is
+      // the shape, so it opens on all of it rather than on the root person.
+      this.zoomBehavior.scaleTo(
+        select(parent) as Selection<Element, unknown, BaseType, unknown>,
+        extent[0],
+      );
+      parent.scrollLeft =
+        chartInfo.origin[0] * extent[0] - parent.clientWidth / 2;
+      parent.scrollTop = 0;
     } else if (args.resetPosition) {
       if (args.initialRender) {
         parent.scrollLeft = -dx;

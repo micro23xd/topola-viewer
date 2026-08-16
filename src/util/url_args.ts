@@ -115,6 +115,7 @@ export function getArguments(location: H.Location): Arguments {
     ['relatives', ChartType.Relatives],
     ['fancy', ChartType.Fancy],
     ['donatso', ChartType.Donatso],
+    ['network', ChartType.Network],
   ]);
 
   const hash = getParam('file');

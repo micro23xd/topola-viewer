@@ -251,7 +251,10 @@ export function ViewPage() {
                 {renderChart(selection)}
                 {config.color === ChartColors.COLOR_BY_EVIDENCE &&
                 chartType !== ChartType.Donatso ? (
-                  <EvidenceLegend evidence={evidence} />
+                  <EvidenceLegend
+                    evidence={evidence}
+                    network={chartType === ChartType.Network}
+                  />
                 ) : null}
               </SidebarPusher>
             </SidebarPushable>

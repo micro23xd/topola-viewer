@@ -17,6 +17,8 @@ export enum ChartType {
   Relatives,
   Donatso,
   Fancy,
+  /** Ancestors as a graph: one box per person, however many lines reach them. */
+  Network,
 }
 
 export interface ChartProps {

@@ -21,6 +21,8 @@ export interface EvidenceLabels {
   detached: string;
   pending: string;
   dotsCaption: string;
+  /** What the badge on a repeated ancestor means. */
+  pathsCaption: string;
   header: string;
 }
 
@@ -47,6 +49,7 @@ const DE: EvidenceLabels = {
   detached: 'nicht verbunden',
   pending: 'Beleg nachzutragen',
   dotsCaption: 'Punkte: Geburt · Tod · Heirat',
+  pathsCaption: '×n: so viele Abstammungswege',
   header: 'Belege',
 };
 
@@ -77,6 +80,7 @@ const EN: EvidenceLabels = {
   detached: 'not connected',
   pending: 'citation outstanding',
   dotsCaption: 'Dots: birth · death · marriage',
+  pathsCaption: '×n: that many lines of descent',
   header: 'Evidence',
 };
 

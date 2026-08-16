@@ -33,9 +33,11 @@ const DOTS: Array<{fill: string; stroke?: string; label: string}> = [
 
 interface Props {
   evidence?: EvidenceIndex;
+  /** The ancestor network draws no per-fact dots; it badges repeats instead. */
+  network?: boolean;
 }
 
-export function EvidenceLegend({evidence}: Props) {
+export function EvidenceLegend({evidence, network}: Props) {
   const intl = useIntl();
   const labels = evidenceLabels(intl.locale);
   const dots = DOTS.map((dot, index) => ({
@@ -104,21 +106,27 @@ export function EvidenceLegend({evidence}: Props) {
         </div>
       ))}
       <div style={{height: '5px'}} />
-      <div style={{marginBottom: '2px'}}>{labels.dotsCaption}</div>
-      {dots.map((dot) => (
-        <div key={dot.label} style={row}>
-          <span
-            style={{
-              width: '9px',
-              height: '9px',
-              background: dot.fill,
-              border: dot.stroke ? `1px solid ${dot.stroke}` : 'none',
-              borderRadius: '50%',
-            }}
-          />
-          {dot.label}
-        </div>
-      ))}
+      {network ? (
+        <div>{labels.pathsCaption}</div>
+      ) : (
+        <>
+          <div style={{marginBottom: '2px'}}>{labels.dotsCaption}</div>
+          {dots.map((dot) => (
+            <div key={dot.label} style={row}>
+              <span
+                style={{
+                  width: '9px',
+                  height: '9px',
+                  background: dot.fill,
+                  border: dot.stroke ? `1px solid ${dot.stroke}` : 'none',
+                  borderRadius: '50%',
+                }}
+              />
+              {dot.label}
+            </div>
+          ))}
+        </>
+      )}
       {evidence ? (
         <div
           style={{
