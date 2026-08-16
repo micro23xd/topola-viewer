@@ -11,6 +11,8 @@ export enum ChartColors {
   NO_COLOR,
   COLOR_BY_SEX,
   COLOR_BY_GENERATION,
+  /** By how well each person is evidenced. See util/evidence.ts. */
+  COLOR_BY_EVIDENCE,
 }
 
 export enum Ids {
@@ -43,6 +45,7 @@ const COLOR_ARG = new Map<string, ChartColors>([
   ['n', ChartColors.NO_COLOR],
   ['g', ChartColors.COLOR_BY_GENERATION],
   ['s', ChartColors.COLOR_BY_SEX],
+  ['e', ChartColors.COLOR_BY_EVIDENCE],
 ]);
 const COLOR_ARG_INVERSE = new Map<ChartColors, string>();
 COLOR_ARG.forEach((v, k) => COLOR_ARG_INVERSE.set(v, k));
@@ -185,6 +188,27 @@ export function ConfigPanel(props: {
                   props.onChange({
                     ...props.config,
                     color: ChartColors.COLOR_BY_SEX,
+                  })
+                }
+              />
+            </Form.Field>
+            <Form.Field className="no-margin">
+              <Checkbox
+                radio
+                label={
+                  <FormattedMessage
+                    tagName="label"
+                    id="config.colors.COLOR_BY_EVIDENCE"
+                    defaultMessage="by evidence"
+                  />
+                }
+                name="checkboxRadioGroup"
+                value="evidence"
+                checked={props.config.color === ChartColors.COLOR_BY_EVIDENCE}
+                onClick={() =>
+                  props.onChange({
+                    ...props.config,
+                    color: ChartColors.COLOR_BY_EVIDENCE,
                   })
                 }
               />

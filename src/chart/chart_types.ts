@@ -9,6 +9,7 @@ import {
   ChartColors as TopolaChartColors,
 } from 'topola';
 import {ChartColors, Ids, PlaceDisplay, Sex} from '../sidepanel/config/config';
+import {EvidenceRenderer} from './evidence_renderer';
 
 /** Supported chart types. */
 export enum ChartType {
@@ -38,6 +39,8 @@ export const chartColors = new Map<ChartColors, TopolaChartColors>([
   [ChartColors.NO_COLOR, TopolaChartColors.NO_COLOR],
   [ChartColors.COLOR_BY_GENERATION, TopolaChartColors.COLOR_BY_GENERATION],
   [ChartColors.COLOR_BY_SEX, TopolaChartColors.COLOR_BY_SEX],
+  // The evidence renderer paints the boxes itself; topola must not tint them.
+  [ChartColors.COLOR_BY_EVIDENCE, TopolaChartColors.NO_COLOR],
 ]);
 
 export function getChartType(chartType: ChartType) {
@@ -54,12 +57,15 @@ export function getChartType(chartType: ChartType) {
   }
 }
 
-export function getRendererType(chartType: ChartType) {
+export function getRendererType(chartType: ChartType, colors?: ChartColors) {
   switch (chartType) {
     case ChartType.Fancy:
       return CircleRenderer;
     default:
-      // Use DetailedRenderer by default.
-      return DetailedRenderer;
+      // The evidence renderer is a DetailedRenderer that also paints how well
+      // each person is evidenced; the circle chart has no room for that yet.
+      return colors === ChartColors.COLOR_BY_EVIDENCE
+        ? EvidenceRenderer
+        : DetailedRenderer;
   }
 }

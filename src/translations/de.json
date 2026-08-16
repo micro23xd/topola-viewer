@@ -124,6 +124,7 @@
   "config.colors.NO_COLOR": "keine",
   "config.colors.COLOR_BY_GENERATION": "je Generation",
   "config.colors.COLOR_BY_SEX": "nach Geschlecht",
+  "config.colors.COLOR_BY_EVIDENCE": "nach Belegen",
   "config.ids": "Identifikation",
   "config.ids.HIDE": "verbergen",
   "config.ids.SHOW": "anzeigen",

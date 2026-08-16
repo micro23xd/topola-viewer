@@ -26,7 +26,20 @@ const messages: {[language: string]: {[message_id: string]: string}} = {
   ru: messages_ru,
   sv: messages_sv,
 };
-const language = navigator.language && navigator.language.split(/[-_]/)[0];
+/**
+ * The interface language. Normally the browser's, but a `lang=` argument in the
+ * URL hash overrides it — the viewer is often opened by a script (`make view`)
+ * that knows which language the tree is written in better than the browser does.
+ */
+function detectLanguage(): string {
+  const hash = window.location.hash;
+  const query = hash.includes('?') ? hash.substring(hash.indexOf('?') + 1) : '';
+  const lang = new URLSearchParams(query).get('lang');
+  const source = lang || navigator.language || '';
+  return source.split(/[-_]/)[0];
+}
+
+const language = detectLanguage();
 
 const browser = detect();
 

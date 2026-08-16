@@ -22,6 +22,54 @@ import {
 const ZOOM_FACTOR = 1.3;
 
 /**
+ * Where the user was looking, kept across a page reload.
+ *
+ * The viewer reads the GEDCOM once at start-up and offers no reload hook, so a
+ * file being edited while the chart is open can only be picked up by reloading
+ * the page — which otherwise throws away zoom and pan on every save. The
+ * position is stored per URL (the root person is part of it) and only for the
+ * tab, so it never outlives the session.
+ */
+const POSITION_KEY = 'topola-view-position';
+
+interface SavedPosition {
+  url: string;
+  k: number;
+  scrollLeft: number;
+  scrollTop: number;
+}
+
+function positionUrl() {
+  return window.location.pathname + window.location.hash;
+}
+
+function savePosition(parent: Element) {
+  try {
+    const position: SavedPosition = {
+      url: positionUrl(),
+      k: zoomTransform(parent).k,
+      scrollLeft: parent.scrollLeft,
+      scrollTop: parent.scrollTop,
+    };
+    window.sessionStorage.setItem(POSITION_KEY, JSON.stringify(position));
+  } catch (e) {
+    // Private browsing modes can refuse sessionStorage; losing the position is
+    // not worth breaking the chart over.
+  }
+}
+
+function loadPosition(): SavedPosition | undefined {
+  try {
+    const stored = window.sessionStorage.getItem(POSITION_KEY);
+    if (!stored) return undefined;
+    const position = JSON.parse(stored) as SavedPosition;
+    return position.url === positionUrl() ? position : undefined;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+/**
  * Called when the view is dragged with the mouse.
  *
  * @param size the size of the chart
@@ -31,6 +79,7 @@ function zoomed(
   event: D3ZoomEvent<ZoomedElementBaseType, unknown>,
 ) {
   const parent = select('#svgContainer').node() as Element;
+  savePosition(parent);
 
   const scale = event.transform.k;
   const offsetX = max([0, (parent.clientWidth - size[0] * scale) / 2]);
@@ -52,6 +101,7 @@ function scrolled() {
   const y = parent.scrollTop + parent.clientHeight / 2;
   const scale = zoomTransform(parent).k;
   select(parent).call(zoom().translateTo, x / scale, y / scale);
+  savePosition(parent);
 }
 
 /** Returns the element's usable width and height by subtracting the assumed scrollbar size. */
@@ -150,7 +200,7 @@ export class ChartWrapper {
       this.chart = createChart({
         json: props.data,
         chartType: getChartType(props.chartType),
-        renderer: getRendererType(props.chartType),
+        renderer: getRendererType(props.chartType, props.colors),
         svgSelector: '#chart',
         indiCallback: (info) => {
           // ths is called when an individual is selected in the chart
@@ -226,7 +276,17 @@ export class ChartWrapper {
     transition.attr('transform', `translate(${offsetX}, ${offsetY})`);
     transition.attr('width', chartInfo.size[0] * scale);
     transition.attr('height', chartInfo.size[1] * scale);
-    if (args.resetPosition) {
+    // On the first render after a reload, go back to where the user was rather
+    // than re-centring on the root person.
+    const saved = args.initialRender ? loadPosition() : undefined;
+    if (saved) {
+      this.zoomBehavior.scaleTo(
+        select(parent) as Selection<Element, unknown, BaseType, unknown>,
+        saved.k,
+      );
+      parent.scrollLeft = saved.scrollLeft;
+      parent.scrollTop = saved.scrollTop;
+    } else if (args.resetPosition) {
       if (args.initialRender) {
         parent.scrollLeft = -dx;
         parent.scrollTop = -dy;

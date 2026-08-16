@@ -62,7 +62,7 @@ export function idToFamMap(data: JsonGedcomData): Map<string, JsonFam> {
   return map;
 }
 
-function prepareGedcom(entries: GedcomEntry[]): GedcomData {
+export function prepareGedcom(entries: GedcomEntry[]): GedcomData {
   const head = entries.find((entry) => entry.tag === 'HEAD');
   const indis: {[key: string]: GedcomEntry} = {};
   const fams: {[key: string]: GedcomEntry} = {};

@@ -10,6 +10,7 @@ import {
   printChart,
 } from '../chart/chart_export';
 import {ChartType} from '../chart/chart_types';
+import {EvidenceLegend} from '../chart/evidence_legend';
 import {ErrorMessage, ErrorPopup} from '../components/error_display';
 import {ProgressPill} from '../components/progress_pill';
 import {DataSourceEnum} from '../datasource/data_source';
@@ -20,9 +21,10 @@ import {useUrlState} from '../hooks/use_url_state';
 import {useWebMcpBridge} from '../hooks/use_webmcp_bridge';
 import {GoogleAuthModal} from '../menu/google_auth_modal';
 import {TopBar} from '../menu/top_bar';
-import {Config, Ids, Sex} from '../sidepanel/config/config';
+import {ChartColors, Config, Ids, Sex} from '../sidepanel/config/config';
 import {SidePanel} from '../sidepanel/side-panel';
 import {analyticsEvent} from '../util/analytics';
+import {computeEvidence, setCurrentEvidence} from '../util/evidence';
 import {idToIndiMap, TopolaData} from '../util/gedcom_util';
 
 export enum AppState {
@@ -113,6 +115,15 @@ export function ViewPage() {
   useMemo(() => {
     updateChartWithConfig(config, data);
   }, [config, data]);
+
+  // The chart renderer is created by the topola library and never sees React
+  // props, so the evidence index is handed to it through a module store. This
+  // has to happen while rendering, before the chart's effect runs.
+  const evidence = useMemo(
+    () => (data ? computeEvidence(data.gedcom) : undefined),
+    [data],
+  );
+  useMemo(() => setCurrentEvidence(evidence), [evidence]);
 
   useWebMcpBridge(data, detailIndi, onSelection);
 
@@ -217,7 +228,13 @@ export function ViewPage() {
                 onToggle={onToggleSidePanel}
                 onConfigChange={onConfigChange}
               />
-              <SidebarPusher>{renderChart(selection)}</SidebarPusher>
+              <SidebarPusher>
+                {renderChart(selection)}
+                {config.color === ChartColors.COLOR_BY_EVIDENCE &&
+                chartType !== ChartType.Donatso ? (
+                  <EvidenceLegend evidence={evidence} />
+                ) : null}
+              </SidebarPusher>
             </SidebarPushable>
           </div>
         );
