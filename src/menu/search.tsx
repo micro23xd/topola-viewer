@@ -13,7 +13,7 @@ const SHORTCUT_INPUT_PROP = {
   'aria-keyshortcuts': '/',
 };
 
-function getNameLine(result: SearchResult) {
+export function getNameLine(result: SearchResult) {
   const name = [result.indi.firstName, result.indi.lastName].join(' ').trim();
   if (result.id.length > 8) {
     return name;
@@ -25,7 +25,7 @@ function getNameLine(result: SearchResult) {
   );
 }
 
-function getDescriptionLine(indi: JsonIndi, currentIntl: IntlShape) {
+export function getDescriptionLine(indi: JsonIndi, currentIntl: IntlShape) {
   const birthDate = formatDateOrRange(indi.birth, currentIntl);
   const deathDate = formatDateOrRange(indi.death, currentIntl);
   if (!deathDate) {
@@ -34,7 +34,7 @@ function getDescriptionLine(indi: JsonIndi, currentIntl: IntlShape) {
   return `${birthDate} – ${deathDate}`;
 }
 
-function displaySearchResult(
+export function displaySearchResult(
   result: SearchResult,
   currentIntl: IntlShape,
 ): SearchResultProps {

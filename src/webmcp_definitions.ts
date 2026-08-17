@@ -60,6 +60,24 @@ export const FIND_RELATIONSHIP_PATH: ToolDefinition = {
   },
 };
 
+export const DESCRIBE_RELATIONSHIP: ToolDefinition = {
+  name: 'describe_relationship',
+  description:
+    'Names how two people are related and shows the work: the closest common ancestors (most recent ones only), how many generations up each side, whether the two lines run through the same couple or through two different marriages of one person (a half relationship), how many lines of descent there are altogether, and both chains of descent. Where no common ancestor exists it returns the shortest chain of parent, child and marriage steps joining the two, and where the file records no connection it says so.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      a: {type: 'string', description: 'First individual ID'},
+      b: {type: 'string', description: 'Second individual ID'},
+      locale: {
+        type: 'string',
+        description: "Language for the relationship term: 'de' or 'en'.",
+      },
+    },
+    required: ['a', 'b'],
+  },
+};
+
 export const GET_ANCESTORS: ToolDefinition = {
   name: 'get_ancestors',
   description:

@@ -99,6 +99,8 @@ export function Chart(props: ChartProps) {
       // confusing overlap.
       props.onFirstRender?.();
     }
+    // After the render, never through it: see ChartWrapper.setHighlight.
+    chartWrapper.current.setHighlight(props.highlight);
   });
 
   return (

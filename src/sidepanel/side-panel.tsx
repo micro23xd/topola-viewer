@@ -4,6 +4,7 @@ import {TopolaData} from '../util/gedcom_util';
 import {Config, ConfigPanel} from './config/config';
 import {CollapsedDetails} from './details/collapsed-details';
 import {Details} from './details/details';
+import {RelationsTab} from './relations/relations-tab';
 import {ResearchTab} from './research/research-tab';
 
 interface SidePanelProps {
@@ -14,6 +15,12 @@ interface SidePanelProps {
   expanded: boolean;
   onToggle: () => void;
   onSelectIndi: (id: string) => void;
+  /** Shows a person in the Info tab without moving the chart. */
+  onOpenIndi: (id: string) => void;
+  /** The person every relationship in the Info tab is measured from. */
+  home?: string;
+  /** The person the ancestor network is drawn from, when that is the view. */
+  networkRoot?: string;
 }
 
 export function SidePanel({
@@ -24,6 +31,9 @@ export function SidePanel({
   expanded,
   onToggle,
   onSelectIndi,
+  onOpenIndi,
+  home,
+  networkRoot,
 }: SidePanelProps) {
   const intl = useIntl();
 
@@ -39,6 +49,24 @@ export function SidePanel({
           indi={selectedIndiId}
           config={config}
           images={data.images}
+          home={home}
+        />
+      ),
+    },
+    {
+      menuItem: intl.formatMessage({
+        id: 'tab.relations',
+        defaultMessage: 'Relationship',
+      }),
+      render: () => (
+        <RelationsTab
+          data={data}
+          indi={selectedIndiId}
+          relationB={config.relationB}
+          onRelationBChange={(id) => onConfigChange({...config, relationB: id})}
+          onOpenIndi={onOpenIndi}
+          onSelectIndi={onSelectIndi}
+          networkRoot={networkRoot}
         />
       ),
     },

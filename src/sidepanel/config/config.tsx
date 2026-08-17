@@ -61,6 +61,12 @@ export const DEFAULT_NETWORK_OPTIONS: NetworkOptions = {
 
 export interface Config {
   color: ChartColors;
+  /**
+   * The person the relations tab compares against, held while the selection
+   * moves. The other half of the pair is whoever is selected, so only this one
+   * needs remembering.
+   */
+  relationB?: string;
   highlight: Highlight;
   id: Ids;
   sex: Sex;
@@ -161,6 +167,7 @@ export function argsToConfig(args: ParsedQuery<unknown>): Config {
     place: PLACE_ARG.get(getParam('p') ?? '') ?? DEFALUT_CONFIG.place,
     placeCount: placeCount >= 1 ? placeCount : DEFALUT_CONFIG.placeCount,
     network: argToNetwork(getParam('nw')),
+    relationB: getParam('rel') || undefined,
   };
 }
 
@@ -197,6 +204,7 @@ export function configToArgs(config: Config): ParsedQuery {
     config.placeCount !== DEFALUT_CONFIG.placeCount
       ? String(config.placeCount)
       : null;
+  result.rel = config.relationB ?? null;
   return result;
 }
 

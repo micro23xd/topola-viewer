@@ -1,6 +1,6 @@
 import flatMap from 'array.prototype.flatmap';
 import {GedcomEntry} from 'parse-gedcom';
-import {FormattedMessage} from 'react-intl';
+import {FormattedMessage, useIntl} from 'react-intl';
 import {Header, Item} from 'semantic-ui-react';
 import {
   dereference,
@@ -8,10 +8,13 @@ import {
   getData,
   getFileName,
   getImageFileEntry,
+  getName,
   getNonImageFileEntry,
   mapToSource,
   resolveFileUrl,
 } from '../../util/gedcom_util';
+import {kinship} from '../../util/kinship';
+import {isBloodKind, kinshipLabels} from '../../util/kinship_labels';
 import {Config, Ids} from '../config/config';
 import {AdditionalFiles, FileEntry} from './additional-files';
 import {ALL_SUPPORTED_EVENT_TYPES, Events} from './events';
@@ -346,11 +349,54 @@ function getSectionForId(indi: string): React.ReactNode {
   );
 }
 
+/**
+ * How this person stands to the home person, in one line.
+ *
+ * The home person is a viewer argument rather than the selection: the selection
+ * moves with every click, and a line that re-measured itself from wherever you
+ * had just clicked would say nothing.
+ */
+function HomeRelation({
+  gedcom,
+  indi,
+  home,
+}: {
+  gedcom: GedcomData;
+  indi: string;
+  home?: string;
+}) {
+  const intl = useIntl();
+  const labels = kinshipLabels(intl.locale);
+  if (!home || home === indi || !gedcom.indis[home] || !gedcom.indis[indi]) {
+    return null;
+  }
+  const result = kinship(gedcom, indi, home);
+  if (result.kind === 'none') return null;
+  const sex = gedcom.indis[indi].tree.find(
+    (entry) => entry.tag === 'SEX',
+  )?.data;
+  const line = labels.relationTo(
+    labels.term(result, sex === 'M' || sex === 'F' ? sex : undefined),
+    getName(gedcom.indis[home]) || labels.unknownName,
+    result.lines,
+    isBloodKind(result.kind),
+  );
+  return (
+    <Item>
+      <Item.Content>
+        <div style={{color: '#666'}}>{line}</div>
+      </Item.Content>
+    </Item>
+  );
+}
+
 interface Props {
   gedcom: GedcomData;
   indi: string;
   config: Config;
   images?: Map<string, string>;
+  /** The person every relationship here is measured from. */
+  home?: string;
 }
 
 export function Details(props: Props) {
@@ -372,6 +418,11 @@ export function Details(props: Props) {
           imageDetails,
           props.images,
         )}
+        <HomeRelation
+          gedcom={props.gedcom}
+          indi={props.indi}
+          home={props.home}
+        />
         <EvidenceCard gedcom={props.gedcom} indi={props.indi} />
         <ImmediateFamily gedcom={props.gedcom} indi={props.indi} />
         <Timeline gedcom={props.gedcom} indi={props.indi} />

@@ -1,4 +1,5 @@
-body, html {
+body,
+html {
   height: 100%;
 }
 
@@ -70,7 +71,7 @@ div.ui.card.intro {
 }
 
 div.zoom {
-  box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
   border-radius: 4px;
   position: fixed;
   margin: 10px;
@@ -133,10 +134,10 @@ div.zoom {
   cursor: pointer;
 }
 
-.ui.menu .item>img:not(.ui).menu-icon {
+.ui.menu .item > img:not(.ui).menu-icon {
   width: 24px;
   height: 24px;
-  margin-right: 5px
+  margin-right: 5px;
 }
 
 .ui.top.attached.menu {
@@ -145,7 +146,7 @@ div.zoom {
 
 .details {
   padding: 15px 0px;
-  border-bottom: 1px solid rgba(34,36,38,.15);
+  border-bottom: 1px solid rgba(34, 36, 38, 0.15);
   overflow-y: auto;
   height: calc(100% - 43px);
 }
@@ -166,15 +167,11 @@ div.zoom {
   margin: 0;
 }
 
-
 .details .ui.list .item > .list-icon-wrapper + .content {
   display: table-cell;
   vertical-align: top;
   padding-left: 8px;
 }
-
-
-
 
 .details .item-header {
   justify-content: space-between;
@@ -210,7 +207,7 @@ div.zoom {
 }
 
 .hidden-image {
- display: none !important;
+  display: none !important;
 }
 
 .modal-image {
@@ -241,12 +238,12 @@ div.zoom {
   border: none;
 }
 
-.event-extras .ui.menu .active.item .icon{
+.event-extras .ui.menu .active.item .icon {
   background-color: #1b1c1d;
   color: #ffffff;
 }
 
-.event-extras .ui.attached.segment.active.tab{
+.event-extras .ui.attached.segment.active.tab {
   word-break: normal;
   overflow-wrap: anywhere;
   max-width: 289px;
@@ -263,15 +260,20 @@ div.zoom {
   height: 100%;
 }
 
-#dotatsoSvgContainer rect.card-female, #dotatsoSvgContainer .card-female .card-body-rect, #dotatsoSvgContainer .card-female .text-overflow-mask {
+#dotatsoSvgContainer rect.card-female,
+#dotatsoSvgContainer .card-female .card-body-rect,
+#dotatsoSvgContainer .card-female .text-overflow-mask {
   fill: rgb(196, 138, 146);
 }
 
-#dotatsoSvgContainer rect.card-male, #dotatsoSvgContainer .card-male .card-body-rect, #dotatsoSvgContainer .card-male .text-overflow-mask {
+#dotatsoSvgContainer rect.card-male,
+#dotatsoSvgContainer .card-male .card-body-rect,
+#dotatsoSvgContainer .card-male .text-overflow-mask {
   fill: rgb(120, 159, 172);
 }
 
-#dotatsoSvgContainer .card-genderless .card-body-rect, #dotatsoSvgContainer .card-genderless .text-overflow-mask {
+#dotatsoSvgContainer .card-genderless .card-body-rect,
+#dotatsoSvgContainer .card-genderless .text-overflow-mask {
   fill: lightgray;
 }
 
@@ -324,8 +326,17 @@ div.zoom {
   height: 100%;
 }
 
-#sideTabs > .ui.tabular.menu{
+#sideTabs > .ui.tabular.menu {
   padding-left: 60px;
+  /* Four tab names no longer fit on one row in German, and a menu that does
+     not wrap pushes the whole panel sideways instead of overflowing itself. */
+  flex-wrap: wrap;
+}
+
+#sideTabs > .ui.tabular.menu > .item {
+  padding-left: 0.6em;
+  padding-right: 0.6em;
+  font-size: 0.85em;
 }
 
 #sideToggle {
@@ -402,12 +413,12 @@ div.zoom {
 
   /* Substitute the right arrow with a down arrow. */
   #sidebar.wide i.icon.arrow.right:before {
-    content: "\f063";
+    content: '\f063';
   }
 
   /* Substitute the left arrow with an up arrow. */
   #sidebar.very.thin i.icon.arrow.left:before {
-    content: "\f062";
+    content: '\f062';
   }
 
   #content #sidebar.wide ~ .pusher {
@@ -426,7 +437,7 @@ div.zoom {
     margin-right: 1em;
   }
 
-  .ui.search>.results {
+  .ui.search > .results {
     left: initial;
     right: 0;
   }

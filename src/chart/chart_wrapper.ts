@@ -18,7 +18,7 @@ import {
   getChartType,
   getRendererType,
 } from './chart_types';
-import {AncestorNetworkChart} from './network/network_chart';
+import {AncestorNetworkChart, NetworkHighlight} from './network/network_chart';
 
 /** How much to zoom when using the +/- buttons. */
 const ZOOM_FACTOR = 1.3;
@@ -162,6 +162,20 @@ export class ChartWrapper {
       unknown
     >;
     this.zoomBehavior?.scaleBy(parent, factor);
+  }
+
+  /**
+   * Holds two lines of descent lit on the ancestor network.
+   *
+   * Deliberately outside `renderChart`: the panel measures from the live
+   * selection, so this changes on every click, and going through a render
+   * would redraw several hundred nodes and reset the zoom to change a class on
+   * a dozen of them.
+   */
+  setHighlight(highlight?: NetworkHighlight) {
+    if (this.chart instanceof AncestorNetworkChart) {
+      this.chart.setHighlight(highlight);
+    }
   }
 
   /**

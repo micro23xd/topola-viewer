@@ -103,6 +103,17 @@ interface Line {
   unions: Set<string>;
 }
 
+/**
+ * Two lines of descent held lit while the panel names the relationship they
+ * make. `endpoints` are the two people, `meeting` the ancestor they share.
+ */
+export interface NetworkHighlight {
+  people: Set<string>;
+  unions: Set<string>;
+  endpoints: string[];
+  meeting?: string;
+}
+
 export class AncestorNetworkChart {
   private options: AncestorNetworkOptions;
   private network?: AncestorNetwork;
@@ -110,6 +121,8 @@ export class AncestorNetworkChart {
   private lines = new Map<string, Line>();
   /** The person whose line is held on screen, if the user clicked one. */
   private pinned?: string;
+  /** A relationship the panel is showing, held until it changes. */
+  private highlight?: NetworkHighlight;
   private escapeListener?: (event: KeyboardEvent) => void;
 
   constructor(options: AncestorNetworkOptions) {
@@ -323,6 +336,9 @@ export class AncestorNetworkChart {
     }
 
     this.listenForEscape();
+    // A fresh chart has no classes on it, so whatever the panel was showing has
+    // to be painted back on.
+    this.applyHighlight();
 
     return {
       size: [layout.width, layout.height],
@@ -386,14 +402,14 @@ export class AncestorNetworkChart {
     if (args?.pin) this.pinned = personId;
     else if (this.pinned) return;
 
-    const chart = select(this.options.svgSelector);
-    chart.selectAll('.on-path').classed('on-path', false);
-    chart.selectAll('.on-path-soft').classed('on-path-soft', false);
-    chart.selectAll('.partner').classed('partner', false);
-    chart.selectAll('.pinned').classed('pinned', false);
-
     if (!personId || !this.network) {
-      chart.classed('focused', false);
+      // Letting go of a hovered line puts the relationship back rather than
+      // leaving the chart blank: the panel is still showing it.
+      if (this.highlight) {
+        this.applyHighlight();
+        return;
+      }
+      this.clearClasses().classed('focused', false);
       return;
     }
     let line = this.lines.get(personId);
@@ -401,13 +417,56 @@ export class AncestorNetworkChart {
       line = lineThrough(this.network, personId);
       this.lines.set(personId, line);
     }
+    this.paint(line, this.pinned ? [this.pinned] : []);
+  }
+
+  /**
+   * Holds two lines of descent lit, as if pinned, until the panel says
+   * otherwise. Undefined releases them.
+   *
+   * This deliberately does not go through a re-render. The person the panel
+   * measures from is the live selection, so the highlight changes on every
+   * click on the chart, and redrawing the network each time would reset the
+   * zoom, lose the scroll position and rebuild several hundred nodes to change
+   * a class on a dozen of them.
+   */
+  setHighlight(highlight?: NetworkHighlight) {
+    this.highlight = highlight;
+    if (highlight) this.applyHighlight();
+    else this.show(this.pinned, {pin: true});
+  }
+
+  private applyHighlight() {
+    const highlight = this.highlight;
+    if (!highlight || !this.network) return;
+    this.paint(
+      {blood: highlight.people, partners: new Set(), unions: highlight.unions},
+      highlight.endpoints,
+      highlight.meeting,
+    );
+  }
+
+  private clearClasses() {
+    const chart = select(this.options.svgSelector);
+    chart.selectAll('.on-path').classed('on-path', false);
+    chart.selectAll('.on-path-soft').classed('on-path-soft', false);
+    chart.selectAll('.partner').classed('partner', false);
+    chart.selectAll('.pinned').classed('pinned', false);
+    chart.selectAll('.meeting').classed('meeting', false);
+    return chart;
+  }
+
+  /** Lights one set of people, unions and the edges between them. */
+  private paint(line: Line, pinned: string[], meeting?: string) {
     const {blood, partners, unions} = line;
+    const chart = this.clearClasses();
 
     chart.classed('focused', true);
     const persons = chart.selectAll<Element, LayoutNode>('g.person');
     persons.classed('on-path', (node) => blood.has(node.id));
     persons.classed('partner', (node) => partners.has(node.id));
-    persons.classed('pinned', (node) => node.id === this.pinned);
+    persons.classed('pinned', (node) => pinned.includes(node.id));
+    persons.classed('meeting', (node) => node.id === meeting);
     chart
       .selectAll<Element, LayoutNode>('circle.union')
       .classed('on-path', (node) => !!node.unionId && unions.has(node.unionId));
@@ -523,6 +582,11 @@ g.network.focused path.link.on-path {
 g.network.focused g.person.partner rect.box {
   stroke-dasharray: 3 2;
 }
+g.network g.person.meeting rect.box {
+  stroke: #2f6fb3;
+  stroke-width: 3px;
+}
+
 g.network g.person.pinned rect.box {
   stroke: #34495e;
   stroke-width: 2.5px;

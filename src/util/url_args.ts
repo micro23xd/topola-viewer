@@ -24,6 +24,13 @@ export interface Arguments {
   sourceSpec?: DataSourceSpec;
   selection?: IndiInfo;
   detail?: string;
+  /**
+   * The person every relationship is measured from in the Info tab. Deliberately
+   * not `indi`: that one is the selection and moves with every click, and the
+   * watch-reload would then pick up whoever was last looked at. GEDCOM 5.5.1 has
+   * no home-person field, so this is a viewer argument like `indi`.
+   */
+  home?: string;
   chartType: ChartType;
   standalone: boolean;
   showWikiTreeMenus: boolean;
@@ -167,6 +174,7 @@ export function getArguments(location: H.Location): Arguments {
     : undefined;
 
   const detail = getParam('detail');
+  const home = getParam('home');
 
   /**
    * Determines whether the side panel should be shown taking into account the
@@ -192,6 +200,7 @@ export function getArguments(location: H.Location): Arguments {
     sourceSpec,
     selection,
     detail,
+    home,
     // Hourglass is the default view.
     chartType: chartTypes.get(view) || ChartType.Hourglass,
 

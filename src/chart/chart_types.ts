@@ -16,7 +16,7 @@ import {
   Sex,
 } from '../sidepanel/config/config';
 import {EvidenceCircleRenderer, EvidenceRenderer} from './evidence_renderer';
-import {HoverTarget} from './network/network_chart';
+import {HoverTarget, NetworkHighlight} from './network/network_chart';
 
 /** Supported chart types. */
 export enum ChartType {
@@ -44,6 +44,11 @@ export interface ChartProps {
   network?: NetworkOptions;
   /** The ancestor network reports what the pointer is over. */
   onHover?: (target: HoverTarget | undefined) => void;
+  /**
+   * Two lines of descent to hold lit on the ancestor network. Applied without a
+   * re-render, so it may change on every click without redrawing the chart.
+   */
+  highlight?: NetworkHighlight;
   /** Called once after the initial D3 layout and SVG render completes. */
   onFirstRender?: () => void;
 }

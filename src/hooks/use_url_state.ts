@@ -97,6 +97,7 @@ export function useUrlState() {
     sourceSpec: args.sourceSpec,
     selection: args.selection,
     detail: args.detail,
+    home: args.home,
     updateUrl,
     onSelection,
     onDetailSelection,

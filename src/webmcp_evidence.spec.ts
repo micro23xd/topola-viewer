@@ -125,6 +125,35 @@ describe('WebMCP evidence tools', () => {
     ]);
   });
 
+  it('names how two people are related, and shows the chain', async () => {
+    const {call} = await bridgeWithFixture();
+    const result = (await call('describe_relationship', {
+      a: 'I1',
+      b: 'I2',
+      locale: 'de',
+    })) as {
+      structuredContent: {
+        relationship: string;
+        kind: string;
+        removal: number;
+        lines_of_descent: number;
+        closest: {id: string; chain_from_a: Array<{id: string}>};
+        marriages_on_the_line: number;
+      };
+    };
+    const described = result.structuredContent;
+    expect(described.kind).toBe('descendant');
+    expect(described.relationship).toBe('Sohn');
+    expect(described.removal).toBe(1);
+    expect(described.lines_of_descent).toBe(1);
+    expect(described.closest.id).toBe('I2');
+    expect(described.closest.chain_from_a.map((row) => row.id)).toEqual([
+      'I1',
+      'I2',
+    ]);
+    expect(described.marriages_on_the_line).toBe(1);
+  });
+
   it('lists a queue and rejects a name it does not know', async () => {
     const {call} = await bridgeWithFixture();
     const listed = (await call('list_research_queue', {

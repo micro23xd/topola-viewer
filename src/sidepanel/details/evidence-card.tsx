@@ -15,7 +15,7 @@ import {
 import {GedcomData} from '../../util/gedcom_util';
 import {linkForRefn} from '../../util/links';
 
-const BUCKET_COLOR: {[key in Bucket]: string} = {
+export const BUCKET_COLOR: {[key in Bucket]: string} = {
   urkunde: '#3a9d5d',
   zweitzeuge: '#d9a400',
   hinweis: '#e07b2a',

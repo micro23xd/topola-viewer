@@ -3,13 +3,17 @@ import {buildSearchIndex, SearchIndex, SearchResult} from './menu/search_index';
 import {computeEvidence, EvidenceIndex, Fact} from './util/evidence';
 import {
   findRelationshipPath,
+  GedcomData,
   getAncestors,
   getDescendants,
   idToFamMap,
   idToIndiMap,
   TopolaData,
 } from './util/gedcom_util';
+import {kinship} from './util/kinship';
+import {describeKinship, kinshipLabels} from './util/kinship_labels';
 import {
+  DESCRIBE_RELATIONSHIP,
   FIND_RELATIONSHIP_PATH,
   FOCUS_INDI,
   GET_ANCESTORS,
@@ -84,6 +88,7 @@ export class WebMcpBridge {
   private famMap: Map<string, JsonFam> = new Map();
   private setSelectionCallback: ((id: string) => void) | null = null;
   private evidence: EvidenceIndex | null = null;
+  private gedcom: GedcomData | null = null;
   private toolsRegistered = false;
 
   /** Returns the full details of the currently selected person. */
@@ -145,6 +150,95 @@ export class WebMcpBridge {
       .map((id) => this.toBasicIndi(id))
       .filter(Boolean);
     return toMcpResponse(basicIndis);
+  }
+
+  private async handleDescribeRelationship(params: {
+    a: string;
+    b: string;
+    locale?: string;
+  }) {
+    if (!this.gedcom) {
+      return textMcpResponse('No file loaded.');
+    }
+    if (!this.gedcom.indis[params.a] || !this.gedcom.indis[params.b]) {
+      return textMcpResponse(
+        `No person found with id ${
+          this.gedcom.indis[params.a] ? params.b : params.a
+        }.`,
+      );
+    }
+    const gedcom = this.gedcom;
+    const result = kinship(gedcom, params.a, params.b);
+    const labels = kinshipLabels(params.locale ?? 'en');
+    const sexOf = (id: string) => {
+      const sex = gedcom.indis[id]?.tree.find(
+        (entry: {tag: string}) => entry.tag === 'SEX',
+      )?.data;
+      return sex === 'M' || sex === 'F' ? sex : undefined;
+    };
+    const chain = (
+      from: string,
+      path: {steps: Array<{id: string; famId: string; adopted: boolean}>},
+    ) =>
+      [{id: from, through: undefined as string | undefined, adopted: false}]
+        .concat(
+          path.steps.map((step) => ({
+            id: step.id,
+            through: step.famId,
+            adopted: step.adopted,
+          })),
+        )
+        .map((row) => ({
+          id: row.id,
+          name: this.getIndiName(row.id),
+          through_family: row.through,
+          adopted: row.adopted,
+        }));
+
+    return toMcpResponse({
+      a: {id: params.a, name: this.getIndiName(params.a)},
+      b: {id: params.b, name: this.getIndiName(params.b)},
+      relationship: describeKinship(result, sexOf, labels),
+      kind: result.kind,
+      degree: result.degree,
+      removal: result.removal,
+      half: result.half,
+      married_to_each_other: result.married,
+      common_ancestors: result.mrcas,
+      lines_of_descent: result.lines,
+      closest: result.best
+        ? {
+            id: result.best.id,
+            name: this.getIndiName(result.best.id),
+            generations_up: result.best.up,
+            through_family: result.best.throughFam,
+            partner: result.best.partner
+              ? {
+                  id: result.best.partner,
+                  name: this.getIndiName(result.best.partner),
+                }
+              : undefined,
+            lines: result.best.lines,
+            chain_from_a: chain(params.a, result.best.fromA),
+            chain_from_b: chain(params.b, result.best.fromB),
+          }
+        : undefined,
+      other_common_ancestors: result.others.map((other) => ({
+        id: other.id,
+        name: this.getIndiName(other.id),
+        generations_up: other.up,
+        lines: other.lines,
+      })),
+      bridge: result.bridge?.map((hop) => ({
+        via: hop.via,
+        id: hop.id,
+        name: this.getIndiName(hop.id),
+      })),
+      marriages_on_the_line: result.steps,
+      marriages_without_a_citation: result.uncited,
+      weakest_marriage_quay: result.weakest,
+      partial: result.partial,
+    });
   }
 
   private async handleGetAncestors(params: {id: string; generations: number}) {
@@ -297,12 +391,14 @@ export class WebMcpBridge {
       this.chartData = newData.chartData;
       this.searchIndex = null;
       this.evidence = computeEvidence(newData.gedcom);
+      this.gedcom = newData.gedcom;
     } else {
       this.indiMap.clear();
       this.famMap.clear();
       this.chartData = null;
       this.searchIndex = null;
       this.evidence = null;
+      this.gedcom = null;
     }
   }
 
@@ -470,6 +566,13 @@ export class WebMcpBridge {
         execute: (params: Record<string, unknown>) =>
           this.handleFindRelationshipPath(
             params as {source: string; target: string},
+          ),
+      },
+      {
+        ...DESCRIBE_RELATIONSHIP,
+        execute: (params: Record<string, unknown>) =>
+          this.handleDescribeRelationship(
+            params as {a: string; b: string; locale?: string},
           ),
       },
       {

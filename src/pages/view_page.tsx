@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Loader, SidebarPushable, SidebarPusher} from 'semantic-ui-react';
 import {IndiInfo} from 'topola';
@@ -35,6 +35,7 @@ import {SidePanel} from '../sidepanel/side-panel';
 import {analyticsEvent} from '../util/analytics';
 import {computeEvidence, setCurrentEvidence} from '../util/evidence';
 import {idToIndiMap, TopolaData} from '../util/gedcom_util';
+import {kinship} from '../util/kinship';
 
 export enum AppState {
   INITIAL,
@@ -78,6 +79,7 @@ export function ViewPage() {
     config,
     selection: urlSelection,
     detail: urlDetail,
+    home: urlHome,
     onSelection,
     onDetailSelection,
     onToggleSidePanel,
@@ -88,6 +90,15 @@ export function ViewPage() {
   // what is known about them. Set on entering and leaving a box, not on every
   // move, so this costs a handful of renders rather than one per frame.
   const [hovered, setHovered] = useState<HoverTarget | undefined>(undefined);
+
+  // Who "Dominiks Urgroßvater" is measured from. `home=` says it outright; a
+  // file opened without one falls back to whoever the URL started on, and then
+  // to the first person in the file. The selection is deliberately not used:
+  // it moves with every click, and the watch-reload would then adopt it.
+  const firstIndi = useRef<string | undefined>(undefined);
+  if (firstIndi.current === undefined && urlSelection?.id) {
+    firstIndi.current = urlSelection.id;
+  }
 
   const {
     state,
@@ -148,6 +159,34 @@ export function ViewPage() {
         config.highlight === Highlight.OPEN_WORK,
     );
   });
+
+  // The two lines of descent the relations tab is showing, as a set of people
+  // and a set of families for the network to light up. Computed here rather
+  // than in the panel because the chart needs it whether the panel is open or
+  // not, and because it must not travel through a chart re-render.
+  const personA = detailIndi || updatedSelection?.id;
+  const highlight = useMemo(() => {
+    const b = config.relationB;
+    if (
+      chartType !== ChartType.Network ||
+      !data ||
+      !personA ||
+      !b ||
+      !data.gedcom.indis[b] ||
+      !data.gedcom.indis[personA]
+    ) {
+      return undefined;
+    }
+    const result = kinship(data.gedcom, personA, b);
+    if (!result.best) return undefined;
+    const steps = [...result.best.fromA.steps, ...result.best.fromB.steps];
+    return {
+      people: new Set([personA, b, ...steps.map((step) => step.id)]),
+      unions: new Set(steps.map((step) => step.famId)),
+      endpoints: [personA, b],
+      meeting: result.best.id,
+    };
+  }, [chartType, data, personA, config.relationB]);
 
   useWebMcpBridge(data, detailIndi, onSelection);
 
@@ -221,6 +260,7 @@ export function ViewPage() {
         placeDisplay={config.place}
         placeCount={config.placeCount}
         network={config.network}
+        highlight={highlight}
         onHover={setHovered}
         onFirstRender={() => setLoadingStatus('')}
       />
@@ -249,12 +289,21 @@ export function ViewPage() {
               <SidePanel
                 data={data}
                 selectedIndiId={detailIndi || selection.id}
+                home={
+                  urlHome ?? firstIndi.current ?? data.chartData.indis[0]?.id
+                }
+                networkRoot={
+                  chartType === ChartType.Network ? selection.id : undefined
+                }
                 config={config}
                 expanded={showSidePanel}
                 onToggle={onToggleSidePanel}
                 onConfigChange={onConfigChange}
                 onSelectIndi={(id) =>
                   onSelection({id, generation: selection.generation})
+                }
+                onOpenIndi={(id) =>
+                  onDetailSelection({id, generation: selection.generation})
                 }
               />
               <SidebarPusher>

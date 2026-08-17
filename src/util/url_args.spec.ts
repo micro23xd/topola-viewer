@@ -347,6 +347,30 @@ describe('url_args', () => {
       expect(back.config.placeCount).toBe(DEFALUT_CONFIG.placeCount);
     });
 
+    it('carries the compared person, and lets go of them again', () => {
+      const from = location('?c=e');
+      const search = getUrlForArgs(
+        from,
+        configToArgs({...DEFALUT_CONFIG, relationB: 'I42'}),
+      ).search;
+      expect(search).toContain('rel=I42');
+      expect(getArguments(location(search)).config.relationB).toBe('I42');
+
+      // Clearing has to remove the argument rather than merely stop writing it:
+      // getUrlForArgs keeps what it is not told to delete.
+      const cleared = getUrlForArgs(
+        location(search),
+        configToArgs(DEFALUT_CONFIG),
+      ).search;
+      expect(cleared).not.toContain('rel=');
+      expect(getArguments(location(cleared)).config.relationB).toBeUndefined();
+    });
+
+    it('reads the home person as its own argument', () => {
+      expect(getArguments(location('?indi=I1&home=I2')).home).toBe('I2');
+      expect(getArguments(location('?indi=I1')).home).toBeUndefined();
+    });
+
     it('still carries the settings that are not at their default', () => {
       const from = location('?c=g');
       const search = getUrlForArgs(
