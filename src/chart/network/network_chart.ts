@@ -17,19 +17,14 @@ import {
   NetworkOptions,
 } from '../../sidepanel/config/config';
 import {Fact, getCurrentEvidence} from '../../util/evidence';
+import {evidenceLabels} from '../../util/evidence_labels';
+import {citationCount, dotClass, dotCss, dotsFor} from '../evidence_dots';
 import {
-  EvidenceLabels,
-  evidenceLabels,
-  tagLabel,
-} from '../../util/evidence_labels';
-import {
-  citationCount,
-  dotClass,
-  dotCss,
-  dotsFor,
-  dotTitle,
-} from '../evidence_dots';
-import {AncestorNetwork, buildAncestorNetwork, lineThrough} from './graph';
+  AncestorNetwork,
+  buildAncestorNetwork,
+  lineThrough,
+  settledUnions,
+} from './graph';
 import {
   DEFAULT_LAYOUT_OPTIONS,
   LayoutEdge,
@@ -39,6 +34,13 @@ import {
   unionNodeId,
 } from './layout';
 
+/** What the pointer is over, and where it is, for the card in view_page. */
+export interface HoverTarget {
+  personId?: string;
+  unionId?: string;
+  box: DOMRect;
+}
+
 export interface AncestorNetworkOptions {
   json: JsonGedcomData;
   svgSelector: string;
@@ -46,36 +48,11 @@ export interface AncestorNetworkOptions {
   onSelect?: (info: IndiInfo) => void;
   /** Show this person in the side panel without moving the chart. */
   onDetail?: (info: IndiInfo) => void;
+  /** The pointer entered or left a box or a marriage node. */
+  onHover?: (target: HoverTarget | undefined) => void;
   colors?: ChartColors;
   locale?: string;
   network?: NetworkOptions;
-}
-
-interface Labels {
-  repeated: (paths: number) => string;
-  root: string;
-  parentsUnknown: string;
-  detached: string;
-  marriage: string;
-}
-
-function labelsFor(locale?: string): Labels {
-  const german = (locale ?? 'en').startsWith('de');
-  return german
-    ? {
-        repeated: (paths) => `${paths} Abstammungswege`,
-        root: 'Ausgangsperson',
-        parentsUnknown: 'Eltern unbekannt',
-        detached: 'nicht verbunden',
-        marriage: 'Heirat',
-      }
-    : {
-        repeated: (paths) => `${paths} lines of descent`,
-        root: 'starting person',
-        parentsUnknown: 'parents unknown',
-        detached: 'unattached',
-        marriage: 'marriage',
-      };
 }
 
 function yearOf(event?: JsonEvent): string | undefined {
@@ -167,10 +144,17 @@ export class AncestorNetworkChart {
     this.lines.clear();
     this.pinned = undefined;
 
-    const labels = labelsFor(this.options.locale);
     const evidenceWords = evidenceLabels(this.options.locale ?? 'en');
     const evidence = getCurrentEvidence();
     const byEvidence = this.options.colors === ChartColors.COLOR_BY_EVIDENCE;
+
+    // "Fade what is settled" has to cover the lines and the joins as well as
+    // the boxes, or two thirds of the chart goes quiet while every thread
+    // between them stays at full strength.
+    const settled = settledUnions(network, (id) => {
+      const state = evidence?.persons.get(id)?.state;
+      return state === 'urkunde' || state === 'zweitzeuge';
+    });
 
     const chart = select(this.options.svgSelector);
     chart.selectAll('*').remove();
@@ -192,7 +176,9 @@ export class AncestorNetworkChart {
       .selectAll('path')
       .data(layout.edges)
       .join('path')
-      .attr('class', 'link')
+      .attr('class', (edge) =>
+        settled.has(edge.unionId) ? 'link settled' : 'link',
+      )
       .attr('d', (edge) => pathThrough(edge.points));
 
     const unions = chart
@@ -203,22 +189,24 @@ export class AncestorNetworkChart {
       .join('circle')
       .attr('class', (node) => {
         const marriage = this.marriageOf(node.unionId);
+        const fade =
+          node.unionId && settled.has(node.unionId) ? ' settled' : '';
         return shown.marriage && byEvidence
-          ? `union evidence-${marriage ? marriage.bucket : 'keine'}`
-          : 'union';
+          ? `union evidence-${marriage ? marriage.bucket : 'keine'}${fade}`
+          : `union${fade}`;
       })
       .attr('cx', (node) => node.x)
       .attr('cy', (node) => node.y + node.height / 2)
       .attr('r', shown.marriage ? 5 : 4);
 
-    if (shown.marriage) {
-      unions.append('title').text((node) => {
-        const marriage = this.marriageOf(node.unionId);
-        if (!marriage)
-          return `${labels.marriage}: ${evidenceWords.notRecorded}`;
-        return marriageTitle(marriage, labels, evidenceWords);
-      });
-    }
+    unions
+      .on('mouseenter', (event: MouseEvent, node) =>
+        this.options.onHover?.({
+          unionId: node.unionId,
+          box: (event.currentTarget as Element).getBoundingClientRect(),
+        }),
+      )
+      .on('mouseleave', () => this.options.onHover?.(undefined));
 
     const people = chart
       .append('g')
@@ -245,8 +233,17 @@ export class AncestorNetworkChart {
         event.stopPropagation();
         this.options.onSelect?.(this.infoFor(node, event));
       })
-      .on('mouseenter', (_event: MouseEvent, node) => this.show(node.id))
-      .on('mouseleave', () => this.show(undefined));
+      .on('mouseenter', (event: MouseEvent, node) => {
+        this.show(node.id);
+        this.options.onHover?.({
+          personId: node.id,
+          box: (event.currentTarget as Element).getBoundingClientRect(),
+        });
+      })
+      .on('mouseleave', () => {
+        this.show(undefined);
+        this.options.onHover?.(undefined);
+      });
 
     people
       .append('rect')
@@ -288,9 +285,6 @@ export class AncestorNetworkChart {
           circle.setAttribute('r', '3.5');
           circle.setAttribute('cx', String(index * 10));
           circle.setAttribute('cy', '0');
-          const title = document.createElementNS(SVG_NS, 'title');
-          title.textContent = dotTitle(entry.tag, entry.fact, evidenceWords);
-          circle.appendChild(title);
           group.appendChild(circle);
         });
       });
@@ -327,22 +321,6 @@ export class AncestorNetworkChart {
         .attr('y', 17)
         .text((node) => `×${node.person?.paths}`);
     }
-
-    people.append('title').text((node) => {
-      const person = evidence?.persons.get(node.id);
-      const indi = indis.get(node.id);
-      const parts = [
-        `${nameOf(indi) || node.id}${
-          lifespan(indi) ? `, ${lifespan(indi)}` : ''
-        }`,
-      ];
-      if ((node.person?.paths ?? 1) > 1)
-        parts.push(labels.repeated(node.person?.paths ?? 1));
-      if (node.id === root) parts.push(labels.root);
-      if (person?.frontier) parts.push(labels.parentsUnknown);
-      if (person?.detached) parts.push(labels.detached);
-      return parts.join(' · ');
-    });
 
     this.listenForEscape();
 
@@ -459,19 +437,6 @@ export class AncestorNetworkChart {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-function marriageTitle(
-  marriage: Fact,
-  labels: Labels,
-  words: EvidenceLabels,
-): string {
-  const when = marriage.date ? ` ${marriage.date}` : '';
-  return (
-    `${tagLabel(words, 'MARR')}${when}: ` +
-    `${words.bucket[marriage.bucket]} (${words.quay(marriage.bestQuay)}), ` +
-    words.citations(marriage.citations.length)
-  );
-}
-
 const CSS =
   `
 g.network text {
@@ -562,9 +527,18 @@ g.network g.person.pinned rect.box {
   stroke: #34495e;
   stroke-width: 2.5px;
 }
-#chart.dim-settled g.person.state-urkunde,
-#chart.dim-settled g.person.state-zweitzeuge {
+/* Fading what is proven: the boxes, the joins between them and the lines that
+   run into those joins, so what is left standing is the open work and the
+   threads that lead to it. A line being pointed at always wins -- that is a
+   deliberate question, and the fade is only a standing filter. */
+#chart.dim-settled g.person.state-urkunde:not(.on-path):not(.partner),
+#chart.dim-settled g.person.state-zweitzeuge:not(.on-path):not(.partner) {
   opacity: 0.25;
+}
+
+#chart.dim-settled path.link.settled:not(.on-path):not(.on-path-soft),
+#chart.dim-settled circle.union.settled:not(.on-path) {
+  opacity: 0.15;
 }
 ` + dotCss('g.network .evidence-dots');
 

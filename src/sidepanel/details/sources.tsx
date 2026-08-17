@@ -22,7 +22,7 @@ const TIERS: {[key: number]: {text: string; color: string}} = {
   0: {text: 'family memory', color: '#e07b2a'},
 };
 
-function TierBadge({quay}: {quay?: number}) {
+export function TierBadge({quay}: {quay?: number}) {
   const intl = useIntl();
   const tier = quay !== undefined ? TIERS[quay] : undefined;
   const text = tier

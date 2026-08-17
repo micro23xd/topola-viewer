@@ -202,6 +202,27 @@ function rank(
 }
 
 /**
+ * The families every one of whose people is already proven.
+ *
+ * "Fade what is settled" has to mean the fabric and not only the boxes: a union
+ * whose couple and children are all evidenced, and the lines running into it,
+ * belong to the part of the chart there is nothing left to do about. Anything
+ * touching an open question stays visible, so a person who still needs work
+ * keeps a thread to where they sit.
+ */
+export function settledUnions(
+  network: AncestorNetwork,
+  isSettled: (personId: string) => boolean,
+): Set<string> {
+  const settled = new Set<string>();
+  network.unions.forEach((union, famId) => {
+    const people = [...union.parents, ...union.children];
+    if (people.every((id) => isSettled(id))) settled.add(famId);
+  });
+  return settled;
+}
+
+/**
  * Everything above this person: their own ancestry, and nothing else.
  *
  * Deliberately never walks a union's *children*. With pedigree collapse a

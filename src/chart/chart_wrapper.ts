@@ -213,6 +213,7 @@ export class ChartWrapper {
               colors: props.colors,
               locale: intl.locale,
               network: props.network,
+              onHover: props.onHover,
             })
           : createChart({
               json: props.data,

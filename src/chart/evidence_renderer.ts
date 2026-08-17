@@ -192,8 +192,8 @@ export class EvidenceRenderer extends DetailedRenderer {
       `
 /* "Only the open work": everything already settled fades into the background,
    which on a tree this size is the difference between a wall and a to-do list. */
-#chart.dim-settled g.indi.state-urkunde,
-#chart.dim-settled g.indi.state-zweitzeuge {
+#chart.dim-settled g.indi.state-urkunde:not(.on-path):not(.partner),
+#chart.dim-settled g.indi.state-zweitzeuge:not(.on-path):not(.partner) {
   opacity: 0.25;
 }
 

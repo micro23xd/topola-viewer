@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Loader, SidebarPushable, SidebarPusher} from 'semantic-ui-react';
 import {IndiInfo} from 'topola';
@@ -11,7 +11,9 @@ import {
 } from '../chart/chart_export';
 import {ChartType} from '../chart/chart_types';
 import {EvidenceLegend} from '../chart/evidence_legend';
+import {HoverTarget} from '../chart/network/network_chart';
 import {NetworkControls} from '../chart/network/network_controls';
+import {NetworkTooltip} from '../chart/network/network_tooltip';
 import {ErrorMessage, ErrorPopup} from '../components/error_display';
 import {ProgressPill} from '../components/progress_pill';
 import {DataSourceEnum} from '../datasource/data_source';
@@ -81,6 +83,11 @@ export function ViewPage() {
     onToggleSidePanel,
     onConfigChange,
   } = useUrlState();
+
+  // What the pointer is over in the ancestor network, for the card that says
+  // what is known about them. Set on entering and leaving a box, not on every
+  // move, so this costs a handful of renders rather than one per frame.
+  const [hovered, setHovered] = useState<HoverTarget | undefined>(undefined);
 
   const {
     state,
@@ -214,6 +221,7 @@ export function ViewPage() {
         placeDisplay={config.place}
         placeCount={config.placeCount}
         network={config.network}
+        onHover={setHovered}
         onFirstRender={() => setLoadingStatus('')}
       />
     );
@@ -251,6 +259,9 @@ export function ViewPage() {
               />
               <SidebarPusher>
                 {renderChart(selection)}
+                {chartType === ChartType.Network ? (
+                  <NetworkTooltip gedcom={data.gedcom} target={hovered} />
+                ) : null}
                 <div
                   className="chart-overlays"
                   style={{

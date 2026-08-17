@@ -5,6 +5,7 @@ import {
   buildAncestorNetwork,
   descentCone,
   lineThrough,
+  settledUnions,
 } from './graph';
 
 /**
@@ -134,6 +135,16 @@ describe('the ancestor network', () => {
     const line = lineThrough(network, 'R');
     expect(line.blood.size).toBe(9);
     expect(Array.from(line.partners)).toEqual([]);
+  });
+
+  it('calls a family settled only when everyone in it is', () => {
+    const network = buildAncestorNetwork(cousinMarriage(), 'R');
+    expect(settledUnions(network, () => true).size).toBe(4);
+    expect(settledUnions(network, () => false).size).toBe(0);
+    // One open person takes out the family they were born into and the one
+    // they married into -- the two places their question is still visible.
+    const open = settledUnions(network, (id) => id !== 'C');
+    expect(Array.from(open).sort()).toEqual(['fAB', 'fEF']);
   });
 
   it('is empty when the root is not in the file', () => {

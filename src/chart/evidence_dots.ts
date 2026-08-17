@@ -44,9 +44,23 @@ export function dotTitle(
   );
 }
 
-/** How many citations stand behind the person's facts altogether. */
+/**
+ * How many citations stand behind the person altogether.
+ *
+ * Their marriages count: they are the person's facts as much as their birth is,
+ * they are what the dots above already show, and a count that left them out
+ * would disagree with the dots beside it.
+ */
 export function citationCount(person: PersonEvidence): number {
-  return person.facts.reduce((total, fact) => total + fact.citations.length, 0);
+  return factsOf(person).reduce(
+    (total, fact) => total + fact.citations.length,
+    0,
+  );
+}
+
+/** Everything evidenced about a person, their marriages included. */
+export function factsOf(person: PersonEvidence): Fact[] {
+  return [...person.facts, ...person.marriages];
 }
 
 /**
