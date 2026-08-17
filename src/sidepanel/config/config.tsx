@@ -164,38 +164,39 @@ export function argsToConfig(args: ParsedQuery<unknown>): Config {
   };
 }
 
+/**
+ * The settings as URL arguments.
+ *
+ * An argument left at its default is written as `null` rather than left out.
+ * `getUrlForArgs` merges what it is given into the query that is already there
+ * and only deletes on an explicit null, so omitting a key does not clear it —
+ * it keeps whatever was there before. A setting that is only *written* when it
+ * differs from the default can then be turned off and never back on, because
+ * the stale argument outlives the change that should have removed it.
+ */
 export function configToArgs(config: Config): ParsedQuery {
   const result: ParsedQuery = {};
   const color = COLOR_ARG_INVERSE.get(config.color);
-  if (color) {
-    result.c = color;
-  }
+  result.c = color ?? null;
   const highlight = HIGHLIGHT_ARG_INVERSE.get(config.highlight);
-  if (highlight && config.highlight !== DEFALUT_CONFIG.highlight) {
-    result.hl = highlight;
-  }
+  result.hl =
+    highlight && config.highlight !== DEFALUT_CONFIG.highlight
+      ? highlight
+      : null;
   const id = ID_ARG_INVERSE.get(config.id);
-  if (id) {
-    result.i = id;
-  }
+  result.i = id ?? null;
   const sex = SEX_ARG_INVERSE.get(config.sex);
-  if (sex) {
-    result.s = sex;
-  }
+  result.s = sex ?? null;
   const network = networkToArg(config.network);
-  if (network !== networkToArg(DEFAULT_NETWORK_OPTIONS)) {
-    result.nw = network;
-  }
+  result.nw =
+    network !== networkToArg(DEFAULT_NETWORK_OPTIONS) ? network : null;
   const place = PLACE_ARG_INVERSE.get(config.place);
-  if (place && config.place !== PlaceDisplay.FULL) {
-    result.p = place;
-  }
-  if (
+  result.p = place && config.place !== PlaceDisplay.FULL ? place : null;
+  result.pn =
     config.place === PlaceDisplay.SHORT &&
     config.placeCount !== DEFALUT_CONFIG.placeCount
-  ) {
-    result.pn = String(config.placeCount);
-  }
+      ? String(config.placeCount)
+      : null;
   return result;
 }
 

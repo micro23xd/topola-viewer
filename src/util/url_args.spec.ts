@@ -4,6 +4,8 @@ import {ChartType} from '../chart/chart_types';
 import {DataSourceEnum} from '../datasource/data_source';
 import {
   ChartColors,
+  configToArgs,
+  DEFALUT_CONFIG,
   DEFAULT_NETWORK_OPTIONS,
   Highlight,
   Ids,
@@ -316,6 +318,51 @@ describe('url_args', () => {
         badges: false,
         compact: false,
       });
+    });
+  });
+
+  describe('a setting put back to its default', () => {
+    const location = (search: string): H.Location => ({
+      pathname: '/view',
+      search,
+      hash: '',
+      state: null,
+      key: '',
+    });
+
+    /**
+     * The round trip a checkbox makes: config -> URL -> config. getUrlForArgs
+     * merges into the query that is already there, so an argument the new
+     * config does not mention survives -- which used to mean a switch could be
+     * turned off and never back on.
+     */
+    it('is cleared from the URL rather than left behind', () => {
+      const from = location('?c=e&nw=mcb&hl=o&p=s&pn=5');
+      const back = getArguments(
+        location(getUrlForArgs(from, configToArgs(DEFALUT_CONFIG)).search),
+      );
+      expect(back.config.network).toEqual(DEFAULT_NETWORK_OPTIONS);
+      expect(back.config.highlight).toBe(Highlight.ALL);
+      expect(back.config.place).toBe(DEFALUT_CONFIG.place);
+      expect(back.config.placeCount).toBe(DEFALUT_CONFIG.placeCount);
+    });
+
+    it('still carries the settings that are not at their default', () => {
+      const from = location('?c=g');
+      const search = getUrlForArgs(
+        from,
+        configToArgs({
+          ...DEFALUT_CONFIG,
+          color: ChartColors.COLOR_BY_EVIDENCE,
+          highlight: Highlight.OPEN_WORK,
+          network: {...DEFAULT_NETWORK_OPTIONS, dots: false},
+        }),
+      ).search;
+      const back = getArguments(location(search));
+      expect(back.config.color).toBe(ChartColors.COLOR_BY_EVIDENCE);
+      expect(back.config.highlight).toBe(Highlight.OPEN_WORK);
+      expect(back.config.network.dots).toBe(false);
+      expect(back.config.network.marriage).toBe(true);
     });
   });
 
